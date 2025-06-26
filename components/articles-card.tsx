@@ -10,7 +10,7 @@ type ArticesCardProps = {
     image: string
     available: number
     category: string
-    onPress: ( value: number ) => void
+    onPress: ( price: number, items: number ) => void
 }
 
 const blurhash = '|rF?hV%2WCj[ayj[a|j[az_NaeWBj@ayfRayfQfQM{M|azj[azf6fQfQfQIpWXofj[ayj[j[fQayWCoeoeaya}j[ayfQa{oLj?j[WVj[ayayj[fQoff7azayj[ayj[j[ayofayayayj[fQj[ayayj[ayfjj[j[ayjuayj[';
@@ -20,16 +20,23 @@ const ArticesCard = (props: ArticesCardProps) => {
     const [articleCount, setArticleCount] = useState(0)
     const [addState, setAddState] = useState(false);
 
-
-    const addArticle = () => {
-        setArticleCount(articleCount + 1)
-        props.onPress(props.price)
+    const addItem = (price: number) => {
+        if (articleCount < props.available) {
+            setArticleCount(articleCount + 1)
+            props.onPress(price, articleCount)
+        }
     }
 
-    const removeItem = () => {
-        setArticleCount(articleCount - 1)
-        props.onPress(-props.price)
+    const removeItem = (price: number) => {
+        if (articleCount > 0) {
+            setArticleCount(articleCount - 1)
+            props.onPress(price, 0- articleCount)
+        }
+        if (articleCount == 0) {
+            setAddState(false)
+        }
     }
+
     
   return (
     <View className='flex flex-col border mt-5 border-borders bg-white rounded-xl p-5'>
@@ -56,7 +63,9 @@ const ArticesCard = (props: ArticesCardProps) => {
             !addState ?
             <AppButton
                 label="Ajouter au panier"
-                onPress={() => setAddState(prev => !prev)}
+                onPress={() => {
+                    setAddState(prev => !prev) 
+                    setArticleCount(1)}}
                 className="flex items-center border-borders flex-row border justify-center p-3 rounded-lg bg-black mt-5 w-fit"
                 textClasses='text-center font-medium text-white'
                 icon={<MaterialIcons name="add" color="white" size={24} />}
@@ -64,14 +73,14 @@ const ArticesCard = (props: ArticesCardProps) => {
 
           <View className='flex flex-row items-center justify-between'>
           <AppButton
-                onPress={addArticle}
+                onPress={() => addItem(props.price)}
                 className="flex items-center border-borders flex-row border justify-center p-3 rounded-lg mt-5 w-fit"
                 textClasses='text-center font-medium text-white'
                 icon={<MaterialIcons name="add" color="black" size={24} />}
             />
              <Text>{articleCount} dans le panier </Text>
             <AppButton
-                onPress={removeItem}
+                onPress={() => removeItem(props.price)}
                 className="flex items-center border-borders flex-row border justify-center p-3 rounded-lg mt-5 w-fit"
                 textClasses='text-center font-medium text-white'
                 icon={<MaterialIcons name="remove" color="black" size={24} />}

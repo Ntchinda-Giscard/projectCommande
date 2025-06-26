@@ -54,8 +54,8 @@ const Articles = () => {
     const [articleCount, setArticleCount] = useState(0)
     const [price, setPrice] = useState(0)
   return (
-    <View className='flex-1 p-5'>
-        <View className='flex flex-row items-center justify-between'>
+    <View className='flex-1'>
+        <View className='flex flex-row items-center justify-between bg-white p-5'>
                 <Text className="text-2xl font-semibold text-gray-900">Articles</Text>
                 <AppButton
                     label={`Panier(${articleCount}) - ${price}XAF`}
@@ -65,7 +65,8 @@ const Articles = () => {
                     icon={<MaterialIcons name="shopping-cart" color="white" size={16} />}
                 />
             </View>
-            <FlatList 
+            <FlatList
+                className='p-5' 
                 data={articles}   
                 scrollEnabled = {true} 
                 renderItem={({ item }) => (
@@ -75,9 +76,11 @@ const Articles = () => {
                         image={item.image}
                         available={item.available}
                         category={item.category}
-                        onPress={(value) => {
-                            setArticleCount(articleCount + 1)
-                            setPrice(price + value)
+                        onPress={(price, amount) => {
+                            setArticleCount(articleCount + amount)
+                            if(amount < 0) setPrice(price * -amount)
+                            else setPrice(price * amount)
+                            
                         }}
                     />
                 )}
