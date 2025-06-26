@@ -29,7 +29,7 @@ import React, { useState } from 'react';
       <View style={styles.container} className='mt-5'>
         {/* {renderLabel()} */}
         <Dropdown
-          style={[styles.dropdown, isFocus && { borderColor: 'blue' }]}
+          style={[styles.dropdown, isFocus && { borderColor: '#E5E7E7' }]}
           placeholderStyle={styles.placeholderStyle}
           selectedTextStyle={styles.selectedTextStyle}
           inputSearchStyle={styles.inputSearchStyle}
@@ -70,7 +70,7 @@ import React, { useState } from 'react';
     },
     dropdown: {
       height: 50,
-      borderColor: 'gray',
+      borderColor: '#E5E7EB',
       borderWidth: 0.5,
       borderRadius: 8,
       paddingHorizontal: 8,

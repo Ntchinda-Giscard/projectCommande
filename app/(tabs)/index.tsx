@@ -9,7 +9,7 @@ export default function Index() {
   const router = useRouter()
 
   return (
-    <View className="flex-1">
+    <View className="flex-1 overflow-y-scroll">
       <View className="flex flex-col bg-white p-5">
         <Text className="text-3xl font-semibold text-gray-900">
           Système de gestion des commandes
