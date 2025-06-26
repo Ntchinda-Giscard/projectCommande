@@ -13,7 +13,7 @@ type AppButtonProps = {
 const AppButton  = (props: AppButtonProps) => {
 
   return (
-    <TouchableOpacity className='mt-5 flex items-center flex-row border justify-center border-gray-300 p-3 rounded-lg bg-white w-fit'
+    <TouchableOpacity className='mt-5 flex items-center border-borders flex-row border justify-center p-3 rounded-lg bg-white w-fit'
     onPress={props.onPress}
     >
         {props.icon}

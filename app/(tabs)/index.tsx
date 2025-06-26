@@ -26,7 +26,9 @@ export default function Index() {
       </View>
 
       <View className="flex flex-col p-5">
-        <TopCard />
+        <TopCard 
+          onPress={(value) => alert(value)}
+        />
       </View>
     </View>
   );

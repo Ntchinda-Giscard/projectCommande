@@ -10,7 +10,11 @@ import React, { useState } from 'react';
     { label:"Hôtel Royal", value: '4' },
   ];
 
-  const PickerData = () => {
+  type PickerDataProps = {
+    onPress: (value: string) => void
+  }
+
+  const PickerData = ({onPress} : PickerDataProps) => {
     const [value, setValue] = useState(null);
     const [isFocus, setIsFocus] = useState(false);
 
@@ -46,6 +50,7 @@ import React, { useState } from 'react';
           onBlur={() => setIsFocus(false)}
           onChange={item => {
             setValue(item.value);
+            onPress(item.value);
             setIsFocus(false);
           }}
         //   renderLeftIcon={() => (
