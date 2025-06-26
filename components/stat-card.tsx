@@ -5,7 +5,11 @@ import { MaterialIcons } from '@expo/vector-icons'
 const StatCard = () => {
   return (
     <View className='flex flex-col space-y-5'>
-      <Card />
+      <Card 
+        icon={<MaterialIcons name="shopping-cart" color={"gray"} size={24} />}
+        title="Nombre de commandes"
+        value="10"
+      />
     </View>
   )
 }
@@ -13,17 +17,21 @@ const StatCard = () => {
 export default StatCard
 
 
+type CarsProps = {
+    icon?: React.ReactNode
+    title?: string
+    value?: string
+}
 
-
-const Card = () =>{
+const Card = (props: CarsProps) =>{
 
     return(
         <View className='border p-5 border-borders bg-white rounded-lg'>
             <View className='flex flex-row items-center justify-between'>
-                <Text className='text-lg font-semibold'>Nombre de commandes</Text>
-                <MaterialIcons name="shopping-cart" color={"#"} size={24} />
+                <Text className='text-lg font-light'> {props.title} </Text>
+                {props.icon}
             </View>
-            <Text className='text-lg font-semibold'>10</Text>
+            <Text className='text-xl font-bold'> {props.value} </Text>
         </View>
     )
 }

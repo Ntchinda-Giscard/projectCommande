@@ -21,7 +21,7 @@ export default function Index() {
           onPress={() => {
             router.push("/commands")
             alert("Pressed!")}}
-          icon={<MaterialIcons name="shopping-cart" color="gray" size={24} />}
+          icon={<MaterialIcons name="border-all" color="gray" size={24} />}
         />
       </View>
 
