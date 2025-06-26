@@ -19,7 +19,7 @@ const _layout = () => {
         <Tabs.Screen name="commands" options={{
             title: "Commandes",
             tabBarIcon: ({ color }) => (
-                <MaterialIcons  name='outbox' size={24} color={color} />
+                <MaterialIcons name="shopping-cart" color={color} size={24} />
             ),
             tabBarLabel: 'Commandes'
         }} />
