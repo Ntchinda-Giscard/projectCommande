@@ -76,11 +76,14 @@ const Articles = () => {
                         image={item.image}
                         available={item.available}
                         category={item.category}
-                        onPress={(price, amount) => {
-                            setArticleCount(articleCount + amount)
-                            if(amount < 0) setPrice(price * -amount)
-                            else setPrice(price * amount)
+                        onAddArticle={(price, amount) => {
+                            setArticleCount(prev => prev + 1)
+                            console.log(articleCount)
                             
+                        }}
+                        onRemoveArticle={(price, amount) => {
+                            setArticleCount(prev => prev - 1)
+                            console.log(articleCount)
                         }}
                     />
                 )}

@@ -10,7 +10,8 @@ type ArticesCardProps = {
     image: string
     available: number
     category: string
-    onPress: ( price: number, items: number ) => void
+    onAddArticle: ( price: number, items: number ) => void
+    onRemoveArticle: ( price: number, items: number ) => void
 }
 
 const blurhash = '|rF?hV%2WCj[ayj[a|j[az_NaeWBj@ayfRayfQfQM{M|azj[azf6fQfQfQIpWXofj[ayj[j[fQayWCoeoeaya}j[ayfQa{oLj?j[WVj[ayayj[fQoff7azayj[ayj[j[ayofayayayj[fQj[ayayj[ayfjj[j[ayjuayj[';
@@ -23,14 +24,14 @@ const ArticesCard = (props: ArticesCardProps) => {
     const addItem = (price: number) => {
         if (articleCount < props.available) {
             setArticleCount(articleCount + 1)
-            props.onPress(price, articleCount)
+            props.onAddArticle(price, articleCount)
         }
     }
 
     const removeItem = (price: number) => {
         if (articleCount > 0) {
             setArticleCount(articleCount - 1)
-            props.onPress(price, 0- articleCount)
+            props.onRemoveArticle(price, 0- articleCount)
         }
         if (articleCount == 0) {
             setAddState(false)
@@ -65,7 +66,9 @@ const ArticesCard = (props: ArticesCardProps) => {
                 label="Ajouter au panier"
                 onPress={() => {
                     setAddState(prev => !prev) 
-                    setArticleCount(1)}}
+                    setArticleCount(articleCount + 1)
+                    props.onAddArticle(props.price, articleCount)
+                }}
                 className="flex items-center border-borders flex-row border justify-center p-3 rounded-lg bg-black mt-5 w-fit"
                 textClasses='text-center font-medium text-white'
                 icon={<MaterialIcons name="add" color="white" size={24} />}

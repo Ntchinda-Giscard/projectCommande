@@ -4,9 +4,11 @@ import { Text, TouchableHighlight, TouchableNativeFeedback, TouchableOpacity, Vi
 import AppButton from "@/components/app-button";
 import { MaterialIcons } from "@expo/vector-icons";
 import TopCard from "@/components/top-card";
+import { useState } from "react";
  
 export default function Index() {
   const router = useRouter()
+  const [value, setValue] = useState<string>();
 
   return (
     <View className="flex-1 overflow-y-scroll">
@@ -29,9 +31,9 @@ export default function Index() {
 
       <View className="flex flex-col p-5">
         <TopCard 
-          onPress={(value) => alert(value)}
+          onPress={(value) => setValue(value)}
         />
-      </View>
+      </View>{ value &&
       <View className="flex flex-col gap-3 p-5">
         <AppButton 
           label="Parcourir les articles" 
@@ -51,7 +53,7 @@ export default function Index() {
           }
           icon={<MaterialIcons name="border-all" color="gray" size={24} />}
         />
-      </View>
+      </View>}
     </View>
   );
 }
