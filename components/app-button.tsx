@@ -4,7 +4,7 @@ import { TouchableOpacity } from 'react-native'
 
 
 type AppButtonProps = {
-    label: string;
+    label?: string | null;
     onPress: () => void;
     icon?: ReactNode,
     link?: ReactNode
@@ -19,7 +19,8 @@ const AppButton  = (props: AppButtonProps) => {
     onPress={props.onPress}
     >
         {props.icon}
-        <Text className={props.textClasses}> {props.label} </Text>
+        { props.label &&
+          <Text className={props.textClasses}> {props.label} </Text>}
     </TouchableOpacity>
   )
 }
