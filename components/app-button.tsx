@@ -8,16 +8,18 @@ type AppButtonProps = {
     onPress: () => void;
     icon?: ReactNode,
     link?: ReactNode
+    className?: string
+    textClasses?: string
 }
 
 const AppButton  = (props: AppButtonProps) => {
 
   return (
-    <TouchableOpacity className='mt-5 flex items-center border-borders flex-row border justify-center p-3 rounded-lg bg-white w-fit'
+    <TouchableOpacity className={props.className}
     onPress={props.onPress}
     >
         {props.icon}
-        <Text className='text-center font-medium text-gray-600'> {props.label} </Text>
+        <Text className={props.textClasses}> {props.label} </Text>
     </TouchableOpacity>
   )
 }
