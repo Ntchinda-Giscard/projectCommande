@@ -4,7 +4,7 @@ import React from 'react'
 const CommandCarts = () => {
   return (
     <View className='flex border border-borders p-3 bg-white rounded-lg mt-4'>
-        <View className='flex flex-row  justify-beween items-center'>
+        <View className='flex flex-row  justify-between items-center w-full'>
             <View className='flex flex-row gap-2'>
                 <Text className='text-xl font-semibold'>Order #17508</Text>
                 <Badge text={'validate'}/>

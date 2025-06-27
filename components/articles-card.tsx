@@ -43,13 +43,17 @@ const ArticesCard = (props: ArticesCardProps) => {
   return (
     <View className='flex flex-col border mt-5 border-borders bg-white rounded-xl p-5'>
       <Image
-                          // style={styles.image}
-                          className='aspect-square relative mb-4 rounded'
-                          source="/placeholder.svg"
-                          placeholder={{ blurhash }}
-                          contentFit="cover"
-                          transition={1000}
-                        />
+        style={{
+          aspectRatio: 1,
+          position: 'relative',
+          marginBottom: 16,
+          borderRadius: 12,
+        }}
+        source="https://picsum.photos/seed/696/3000/2000"
+        placeholder={{ blurhash }}
+        contentFit="cover"
+        transition={1000}
+      />
       <View className='flex flex-row justify-between items-center'> 
         <Text className="text-lg"> {props.name} </Text>
         <Text className="text-2xl font-bold"> {props.price} </Text>
