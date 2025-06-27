@@ -29,13 +29,14 @@ const ArticesCard = (props: ArticesCardProps) => {
     }
 
     const removeItem = (price: number) => {
+        if (articleCount == 0) {
+            setAddState(false)
+        }
         if (articleCount > 0) {
             setArticleCount(articleCount - 1)
             props.onRemoveArticle(price, 0- articleCount)
         }
-        if (articleCount == 0) {
-            setAddState(false)
-        }
+        
     }
 
     

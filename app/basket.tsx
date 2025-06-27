@@ -1,8 +1,12 @@
 import { View, Text } from 'react-native'
 import React from 'react'
 import ItemsInCard from '@/components/items-modify-card'
+import AppButton from '@/components/app-button'
+import { MaterialIcons } from '@expo/vector-icons'
+import { useRouter } from 'expo-router'
 
 const Basket = () => {
+    const router = useRouter()
   return (
     <View className='flex-1 overflow-y-scroll'>
         <View className='bg-white p-5'>
@@ -31,6 +35,42 @@ const Basket = () => {
                     availabe={0} 
                     name={'Fresh Croissants'} 
                 />
+
+                <ItemsInCard 
+                    unitprice={0} 
+                    availabe={0} 
+                    name={'Fresh Croissants'} 
+                />
+
+                <ItemsInCard 
+                    unitprice={0} 
+                    availabe={0} 
+                    name={'Artisan Bread'} 
+                />
+
+                <View className='flex flex-row my-3 justify-between'>
+                    <AppButton
+                        onPress={() => router.push('/articles')}
+                        label={'Add more items'}
+                        className="flex items-center border-borders flex-row border justify-center p-3 rounded-lg w-fit"
+                        textClasses='text-center font-medium text-black'
+                        // icon={<MaterialIcons name="add" color="black" size={24} />}
+                    />
+                    <AppButton
+                        onPress={() => {}}
+                        label={'Clear basket'}
+                        className="flex items-center border-borders flex-row border justify-center p-3 rounded-lg w-fit"
+                        textClasses='text-center font-medium text-red-500'
+                        // icon={<MaterialIcons name="add" color="black" size={24} />}
+                    />
+                </View>
+                <AppButton
+                        onPress={() => {}}
+                        label={'Place order'}
+                        className="flex items-center border-borders flex-row border bg-black justify-center p-3 rounded-lg w-full"
+                        textClasses='text-center font-medium text-white'
+                        icon={<MaterialIcons name="check" color="white" size={16} />}
+                    />
             </View>
         </View>
 
