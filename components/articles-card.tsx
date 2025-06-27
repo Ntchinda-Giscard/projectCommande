@@ -42,12 +42,13 @@ const ArticesCard = (props: ArticesCardProps) => {
   return (
     <View className='flex flex-col border mt-5 border-borders bg-white rounded-xl p-5'>
       <Image
-        style={styles.image}
-        source="/placeholder.svg"
-        placeholder={{ blurhash }}
-        contentFit="cover"
-        transition={1000}
-      />
+                          // style={styles.image}
+                          className='aspect-square relative mb-4 rounded'
+                          source="/placeholder.svg"
+                          placeholder={{ blurhash }}
+                          contentFit="cover"
+                          transition={1000}
+                        />
       <View className='flex flex-row justify-between items-center'> 
         <Text className="text-lg"> {props.name} </Text>
         <Text className="text-2xl font-bold"> {props.price} </Text>
@@ -57,7 +58,6 @@ const ArticesCard = (props: ArticesCardProps) => {
         <Badge text={props.category} />
         <Text className='text-gray-600'> {props.available} disponible </Text>
       </View>
-      (
         <View className='flex flex-col'>
         
           {
@@ -93,7 +93,6 @@ const ArticesCard = (props: ArticesCardProps) => {
 
           </View>}
         </View>
-      )
     </View>
   )
 }

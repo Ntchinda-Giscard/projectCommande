@@ -1,9 +1,10 @@
 import { View, Text } from 'react-native'
 import React from 'react'
+import ItemsInCard from '@/components/items-modify-card'
 
 const Basket = () => {
   return (
-    <View className='flex-1'>
+    <View className='flex-1 overflow-y-scroll'>
         <View className='bg-white p-5'>
             <Text className='text-2xl font-semibold text-gray-900'>Basket</Text>
             <Text className="text-gray-600">Review and manage your order</Text>
@@ -24,7 +25,12 @@ const Basket = () => {
 
             <View className='border border-borders bg-white p-5 rounded-lg mt-8'>
                 <Text className='text-xl font-semibold text-gray-900'>Items in Basket </Text>
-                <Text className="text-gray-600">Modify quantities or remove items as needed</Text>
+                <Text className="text-gray-600 mb-10">Modify quantities or remove items as needed</Text>
+                <ItemsInCard 
+                    unitprice={0} 
+                    availabe={0} 
+                    name={'Fresh Croissants'} 
+                />
             </View>
         </View>
 
