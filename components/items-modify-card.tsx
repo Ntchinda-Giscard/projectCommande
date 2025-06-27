@@ -84,7 +84,7 @@ const Item = (props: ItemsInCardProps) =>{
             <Image
                     // style={styles.image}
                     className='w-16 h-16 rounded'
-                    source="/placeholder.svg"
+                    source="https://picsum.photos/seed/696/3000/2000"
                     placeholder={{ blurhash }}
                     contentFit="cover"
                     transition={1000}

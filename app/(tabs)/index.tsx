@@ -25,7 +25,7 @@ export default function Index() {
           onPress={() => {
             router.push("/commands")
             }}
-          icon={<MaterialIcons name="border-all" color="gray" size={24} />}
+          icon={<MaterialIcons name="layers" color="gray" size={24} />}
         />
       </View>
 
@@ -48,10 +48,10 @@ export default function Index() {
           label="Gérer le panier actuel" 
           className="flex items-center border-borders flex-row border justify-center p-3 rounded-lg bg-white"
           onPress={() => {
-            router.push("/")
+            router.push("/basket")
           }
           }
-          icon={<MaterialIcons name="border-all" color="gray" size={24} />}
+          icon={<MaterialIcons name="layers" color="gray" size={24} />}
         />
       </View>}
     </View>

@@ -6,10 +6,28 @@ const StatCard = () => {
   return (
     <View className='flex flex-col space-y-5 mt-5'>
       <Card 
-        icon={<MaterialIcons name="shopping-cart" color={"gray"} size={16} />}
+        icon={<MaterialIcons name="layers" color={"gray"} size={16} />}
         title="Nombre de commandes"
         value="10"
-        descroiption="Commandes en attente de validation"
+        descroiption="Nombre totale de commandes"
+      />
+      <Card 
+        icon={<MaterialIcons name="access-time" color={"gray"} size={16} />}
+        title="Pending"
+        value="10"
+        descroiption="Commandes en attente"
+      />
+      <Card 
+        icon={<MaterialIcons name="check" color={"gray"} size={16} />}
+        title="Validated"
+        value="10"
+        descroiption="Completed orders"
+      />
+      <Card 
+        icon={<MaterialIcons name="money" color={"gray"} size={16} />}
+        title="Total Value"
+        value="XAF10"
+        descroiption="All time orders"
       />
     </View>
   )

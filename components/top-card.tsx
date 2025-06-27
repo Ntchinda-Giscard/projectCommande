@@ -29,11 +29,6 @@ const TopCard = ({ onPress }: TopCardProps) => {
                 />
             </View>
         </View>
-
-
-        {
-            value && <StatCard />
-        }
     </View>
   )
 }

@@ -21,7 +21,7 @@ const _layout = () => {
         <Tabs.Screen name="commands" options={{
             title: "Commandes",
             tabBarIcon: ({ color }) => (
-                <MaterialIcons name="border-all" color={color} size={24} />
+                <MaterialIcons name="layers" color={color} size={24} />
             ),
             tabBarLabel: 'Commandes'
         }} />
