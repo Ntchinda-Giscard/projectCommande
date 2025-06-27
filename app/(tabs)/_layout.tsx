@@ -5,9 +5,11 @@ import { MaterialIcons, FontAwesome, Ionicons } from '@expo/vector-icons'
 
 const _layout = () => {
   return (
-    <Tabs>
+    <Tabs
+    >
         <Tabs.Screen 
             name="index"
+            
             options={{
                 title: "Accueil",
                 tabBarIcon: ({ color }) => (
