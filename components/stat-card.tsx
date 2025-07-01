@@ -4,7 +4,7 @@ import { MaterialIcons } from '@expo/vector-icons'
 
 const StatCard = () => {
   return (
-    <View className='flex flex-col space-y-5 mt-5'>
+    <View className='flex flex-col space-y-5 mt-5 gap-5 '>
       <Card 
         icon={<MaterialIcons name="layers" color={"gray"} size={16} />}
         title="Nombre de commandes"

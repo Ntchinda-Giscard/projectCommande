@@ -6,6 +6,14 @@ import { MaterialIcons, FontAwesome, Ionicons } from '@expo/vector-icons'
 const _layout = () => {
   return (
     <Tabs
+       screenOptions={{
+        tabBarActiveTintColor: 'black',
+        tabBarInactiveTintColor: 'gray',
+        headerTintColor: 'black', 
+        headerTitleStyle: {
+          color: 'black',
+        },
+       }}
     >
         <Tabs.Screen 
             name="index"
@@ -25,6 +33,13 @@ const _layout = () => {
             ),
             tabBarLabel: 'Commandes'
         }} />
+        <Tabs.Screen name="articles" options={{
+            title: "Articles",
+            tabBarIcon: ({ color }) => (
+                <MaterialIcons  name='article' size={24} color={color} />
+            ),
+            tabBarLabel: 'Articles'
+        }} />
         <Tabs.Screen name="profile" options={{
             title: "Profile",
             tabBarIcon: ({ color }) => (
@@ -37,6 +52,3 @@ const _layout = () => {
 }
 
 export default _layout
-
-
-// how do i get items from and endpoint and list them up in a combo-box in expo react-native !!

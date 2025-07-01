@@ -82,8 +82,12 @@ const Item = (props: ItemsInCardProps) =>{
     return (
         <View className='flex flex-row gap-6 items-center'>
             <Image
-                    // style={styles.image}
-                    className='w-16 h-16 rounded'
+                    style={{
+                      aspectRatio: 1,
+                    //   position: 'relative',
+                      marginBottom: 16,
+                      borderRadius: 12,
+                    }}
                     source="https://picsum.photos/seed/696/3000/2000"
                     placeholder={{ blurhash }}
                     contentFit="cover"
