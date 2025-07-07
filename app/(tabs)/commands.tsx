@@ -1,138 +1,118 @@
-// import { View, Text, ScrollView } from 'react-native'
-// import React from 'react'
-// import StatCard from '@/components/stat-card'
-// import CommandCarts from '@/components/command-carts'
-
-// const Commands = () => {
-//   return (
-//     <View className='flex-1 p-5'>
-//       <ScrollView>
-//         <StatCard />
-//         <CommandCarts />
-//       </ScrollView>
-//     </View>
-//   )
-// }
-
-// export default Commands
-
-
 "use client"
-
-import { useState } from "react"
-import { View, Text, ScrollView, TouchableOpacity, SafeAreaView, StatusBar } from "react-native"
+import * as SecureStore from 'expo-secure-store'
+import { useEffect, useState } from "react"
+import { View, Text, ScrollView, TouchableOpacity, SafeAreaView, StatusBar, ActivityIndicator, RefreshControl } from "react-native"
 import { MaterialIcons } from "@expo/vector-icons"
+import { listCommandes } from "@/services/liste-commande"
+import AppButton from '@/components/app-button'
 
-// Mock data
-const mockOrders = [
-  {
-    id: "001",
-    status: "processing",
-    total: 125,
-    date: "2024-01-15",
-    items: 3,
-    customer: "Electronics Store",
-    estimatedDelivery: "2024-01-18",
-  },
-  {
-    id: "002",
-    status: "shipped",
-    total: 89,
-    date: "2024-01-12",
-    items: 2,
-    customer: "Tech Solutions",
-    estimatedDelivery: "2024-01-16",
-  },
-  {
-    id: "003",
-    status: "delivered",
-    total: 156,
-    date: "2024-01-10",
-    items: 4,
-    customer: "Digital Hub",
-    estimatedDelivery: "2024-01-14",
-  },
-  {
-    id: "004",
-    status: "pending",
-    total: 234,
-    date: "2024-01-14",
-    items: 5,
-    customer: "Innovation Labs",
-    estimatedDelivery: "2024-01-20",
-  },
-  {
-    id: "005",
-    status: "processing",
-    total: 67,
-    date: "2024-01-13",
-    items: 1,
-    customer: "Future Tech",
-    estimatedDelivery: "2024-01-17",
-  },
-  {
-    id: "006",
-    status: "cancelled",
-    total: 198,
-    date: "2024-01-11",
-    items: 3,
-    customer: "Smart Systems",
-    estimatedDelivery: "N/A",
-  },
-  {
-    id: "007",
-    status: "delivered",
-    total: 145,
-    date: "2024-01-09",
-    items: 2,
-    customer: "Tech Innovators",
-    estimatedDelivery: "2024-01-13",
-  },
-  {
-    id: "008",
-    status: "shipped",
-    total: 78,
-    date: "2024-01-08",
-    items: 1,
-    customer: "Digital Solutions",
-    estimatedDelivery: "2024-01-15",
-  },
-]
+type LineItem = {
+  code: string;
+  description?: string;
+  unit: string;
+  quantity: number;
+  price: number;
+};
+
+type Command = {
+  site: string;
+  type: string;
+  number: string;
+  customer: string;
+  date: string;
+  reference?: string;
+  currency?: string;
+  lines: LineItem[];
+};
 
 const OrdersScreen = () => {
   const [selectedFilter, setSelectedFilter] = useState("all")
+  const [commands, setCommands] = useState<Command[]>([])
+  const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
+  const [token, setToken] = useState<string>("")
+  const TOKEN = 'token'
+
+  const loadOrders = async (isRefresh = false) => {
+    try {
+      if (isRefresh) setRefreshing(true)
+      else setLoading(true)
+
+      const storedToken = await SecureStore.getItemAsync(TOKEN)
+      if (!storedToken) {
+        console.log("No token found")
+        return
+      }
+
+      const fetchedCommands = await listCommandes({
+        username: "admin",
+        password: "Wazasolutions2025@",
+        moduleToExport: "SOH",
+        usercode: storedToken,
+      })
+
+      setCommands(fetchedCommands || [])
+      setToken(storedToken)
+      console.log("Orders loaded:", fetchedCommands?.length || 0)
+    } catch (error) {
+      console.error("Error loading orders:", error)
+      setCommands([])
+    } finally {
+      setLoading(false)
+      setRefreshing(false)
+    }
+  }
+
+  useEffect(() => {
+    loadOrders()
+  }, [])
+
+  const onRefresh = () => {
+    loadOrders(true)
+  }
+
+  // Generate status based on order data (you can customize this logic)
+  const getOrderStatus = (command: Command) => {
+    // This is a simple example - adjust based on your business logic
+    const orderDate = new Date(command.date)
+    const daysSinceOrder = Math.floor((Date.now() - orderDate.getTime()) / (1000 * 60 * 60 * 24))
+    
+    if (daysSinceOrder < 1) return "pending"
+    if (daysSinceOrder < 3) return "processing"
+    if (daysSinceOrder < 7) return "shipped"
+    return "delivered"
+  }
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "pending":
-        return "text-yellow-600"
-      case "processing":
-        return "text-blue-600"
-      case "shipped":
-        return "text-purple-600"
-      case "delivered":
-        return "text-green-600"
-      case "cancelled":
-        return "text-red-600"
-      default:
-        return "text-gray-600"
+      case "pending": return "#f59e0b"
+      case "processing": return "#3b82f6"
+      case "shipped": return "#8b5cf6"
+      case "delivered": return "#10b981"
+      case "cancelled": return "#ef4444"
+      default: return "#6b7280"
     }
   }
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case "pending":
-        return "schedule"
-      case "processing":
-        return "autorenew"
-      case "shipped":
-        return "local-shipping"
-      case "delivered":
-        return "check-circle"
-      case "cancelled":
-        return "cancel"
-      default:
-        return "help"
+      case "pending": return "schedule"
+      case "processing": return "autorenew"
+      case "shipped": return "local-shipping"
+      case "delivered": return "check-circle"
+      case "cancelled": return "cancel"
+      default: return "help"
+    }
+  }
+
+  const getStatusBgColor = (status: string) => {
+    switch (status) {
+      case "pending": return "#fef3c7"
+      case "processing": return "#dbeafe"
+      case "shipped": return "#e9d5ff"
+      case "delivered": return "#d1fae5"
+      case "cancelled": return "#fee2e2"
+      default: return "#f3f4f6"
     }
   }
 
@@ -144,20 +124,26 @@ const OrdersScreen = () => {
     { key: "delivered", label: "Delivered" },
   ]
 
-  const filteredOrders =
-    selectedFilter === "all" ? mockOrders : mockOrders.filter((order) => order.status === selectedFilter)
+  const commandsWithStatus = commands.map(command => ({
+    ...command,
+    status: getOrderStatus(command),
+    total: command.lines.reduce((sum, item) => sum + (item.price * item.quantity), 0)
+  }))
+
+  const filteredOrders = selectedFilter === "all" 
+    ? commandsWithStatus 
+    : commandsWithStatus.filter(order => order.status === selectedFilter)
 
   const getOrderStats = () => {
-    const stats = mockOrders.reduce(
+    const stats = commandsWithStatus.reduce(
       (acc, order) => {
         acc[order.status] = (acc[order.status] || 0) + 1
         return acc
       },
       {} as Record<string, number>,
     )
-
     return {
-      total: mockOrders.length,
+      total: commandsWithStatus.length,
       pending: stats.pending || 0,
       processing: stats.processing || 0,
       shipped: stats.shipped || 0,
@@ -167,21 +153,54 @@ const OrdersScreen = () => {
 
   const stats = getOrderStats()
 
-  return (
-    <SafeAreaView className="flex-1 ">
-      <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
+  const formatDate = (dateString: string) => {
+    try {
+      return new Date(dateString).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+      })
+    } catch {
+      return dateString
+    }
+  }
 
+  const formatCurrency = (amount: number, currency = 'USD') => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: currency,
+    }).format(amount)
+  }
+
+  if (loading) {
+    return (
+      <SafeAreaView className="flex-1 justify-center items-center bg-gray-50">
+        <ActivityIndicator size="large" color="#3b82f6" />
+        <Text className="text-gray-600 mt-4">Loading orders...</Text>
+      </SafeAreaView>
+    )
+  }
+
+  return (
+    <SafeAreaView className="flex-1 bg-gray-50">
+      <StatusBar barStyle="dark-content" backgroundColor="#f9fafb" />
+      
       {/* Header */}
-      <View className="px-6 py-4 border-b border-gray-200">
-        <Text className="text-black text-2xl font-bold mb-1">All Orders</Text>
+      <View className="px-6 py-4 bg-white border-b border-gray-200">
+        <Text className="text-black text-2xl font-bold mb-1">Orders</Text>
         <Text className="text-gray-600">Manage and track your orders</Text>
       </View>
 
-      {/* Content */}
-      <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        className="flex-1" 
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+      >
         {/* Stats Overview */}
         <View className="px-6 py-4">
-          <View className="bg-white rounded-xl p-4 border border-borders mb-4">
+          <View className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 mb-4">
             <Text className="text-black text-lg font-semibold mb-3">Order Summary</Text>
             <View className="flex-row justify-between">
               <View className="items-center">
@@ -210,16 +229,20 @@ const OrdersScreen = () => {
 
         {/* Filter Tabs */}
         <View className="px-6 mb-4">
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} className="flex-row">
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             {filterOptions.map((option) => (
               <TouchableOpacity
                 key={option.key}
                 onPress={() => setSelectedFilter(option.key)}
-                className={`mr-3 px-4 py-2 rounded-lg border border-borders ${
-                  selectedFilter === option.key ? "bg-black" : "bg-white"
+                className={`mr-3 px-4 py-2 rounded-full border ${
+                  selectedFilter === option.key 
+                    ? "bg-blue-500 border-blue-500" 
+                    : "bg-white border-gray-200"
                 }`}
               >
-                <Text className={`font-medium ${selectedFilter === option.key ? "text-white" : "text-gray-600"}`}>
+                <Text className={`font-medium ${
+                  selectedFilter === option.key ? "text-white" : "text-gray-600"
+                }`}>
                   {option.label}
                 </Text>
               </TouchableOpacity>
@@ -230,52 +253,105 @@ const OrdersScreen = () => {
         {/* Orders List */}
         <View className="px-6 pb-6">
           {filteredOrders.length === 0 ? (
-            <View className="bg-white rounded-xl p-8 border border-borders items-center">
+            <View className="bg-white rounded-xl p-8 shadow-sm border border-gray-100 items-center">
               <MaterialIcons name="inbox" size={48} color="#6b7280" />
               <Text className="text-black text-lg font-semibold mt-4 mb-2">No Orders Found</Text>
               <Text className="text-gray-500 text-center">
-                {selectedFilter === "all" ? "You haven't placed any orders yet." : `No ${selectedFilter} orders found.`}
+                {selectedFilter === "all" 
+                  ? "You haven't placed any orders yet." 
+                  : `No ${selectedFilter} orders found.`}
               </Text>
+              <TouchableOpacity 
+                onPress={onRefresh}
+                className="mt-4 bg-blue-500 px-4 py-2 rounded-lg"
+              >
+                <Text className="text-white font-medium">Refresh</Text>
+              </TouchableOpacity>
             </View>
           ) : (
             filteredOrders.map((order) => (
-              <TouchableOpacity key={order.id} className="bg-white rounded-xl p-4 mb-3 border border-borders">
+              <TouchableOpacity 
+                key={order.number} 
+                className="bg-white rounded-xl p-4 mb-3 shadow-sm border border-gray-100"
+              >
+                {/* Header Row */}
                 <View className="flex-row items-center justify-between mb-3">
-                  <View className="flex-row items-center">
-                    <MaterialIcons name={getStatusIcon(order.status)} size={20} color="#6b7280" />
-                    <Text className="text-black font-semibold ml-2">Order #{order.id}</Text>
+                  <View className="flex-row items-center flex-1">
+                    <View 
+                      className="w-10 h-10 rounded-full items-center justify-center mr-3"
+                      style={{ backgroundColor: getStatusBgColor(order.status) }}
+                    >
+                      <MaterialIcons 
+                        name={getStatusIcon(order.status)} 
+                        size={20} 
+                        color={getStatusColor(order.status)} 
+                      />
+                    </View>
+                    <View className="flex-1">
+                      <Text className="text-black font-semibold text-base">
+                        Order #{order.number}
+                      </Text>
+                      <Text className="text-gray-500 text-sm">
+                        {order.site} • {order.type}
+                      </Text>
+                    </View>
                   </View>
-                  <Text className={`text-sm font-medium capitalize ${getStatusColor(order.status)}`}>
-                    {order.status}
-                  </Text>
+                  <View 
+                    className="px-3 py-1 rounded-full"
+                    style={{ backgroundColor: getStatusBgColor(order.status) }}
+                  >
+                    <Text 
+                      className="text-xs font-medium capitalize"
+                      style={{ color: getStatusColor(order.status) }}
+                    >
+                      {order.status}
+                    </Text>
+                  </View>
                 </View>
 
-                <View className="mb-3">
-                  <Text className="text-gray-600 text-sm mb-1">Customer: {order.customer}</Text>
-                  <Text className="text-gray-600 text-sm mb-1">
-                    {order.items} items • Ordered on {order.date}
-                  </Text>
-                  {order.status !== "cancelled" && (
-                    <Text className="text-gray-600 text-sm">Estimated delivery: {order.estimatedDelivery}</Text>
+                {/* Customer and Date Info */}
+                <View className="mb-3 bg-gray-50 rounded-lg p-3">
+                  <View className="flex-row items-center mb-2">
+                    <MaterialIcons name="person" size={16} color="#6b7280" />
+                    <Text className="text-gray-700 text-sm ml-2 font-medium">
+                      {order.customer}
+                    </Text>
+                  </View>
+                  <View className="flex-row items-center justify-between">
+                    <View className="flex-row items-center">
+                      <MaterialIcons name="calendar-today" size={16} color="#6b7280" />
+                      <Text className="text-gray-600 text-sm ml-2">
+                        {formatDate(order.date)}
+                      </Text>
+                    </View>
+                    <View className="flex-row items-center">
+                      <MaterialIcons name="shopping-cart" size={16} color="#6b7280" />
+                      <Text className="text-gray-600 text-sm ml-2">
+                        {order.lines.length} items
+                      </Text>
+                    </View>
+                  </View>
+                  {order.reference && (
+                    <View className="flex-row items-center mt-2">
+                      <MaterialIcons name="receipt" size={16} color="#6b7280" />
+                      <Text className="text-gray-600 text-sm ml-2">
+                        Ref: {order.reference}
+                      </Text>
+                    </View>
                   )}
                 </View>
 
+                {/* Total and Actions */}
                 <View className="flex-row items-center justify-between">
-                  <Text className="text-black font-bold text-lg">${order.total}</Text>
-                  <View className="flex-row">
-                    {order.status === "delivered" ? (
-                      <TouchableOpacity className="bg-gray-500 rounded-lg px-3 py-1 mr-2">
-                        <Text className="text-white text-sm font-medium">Reorder</Text>
-                      </TouchableOpacity>
-                    ) : order.status === "pending" ? (
-                      <TouchableOpacity className="bg-gray-500 rounded-lg px-3 py-1 mr-2">
-                        <Text className="text-white text-sm font-medium">Cancel</Text>
-                      </TouchableOpacity>
-                    ) : null}
-                    <TouchableOpacity className="bg-black rounded-lg px-3 py-1">
-                      <Text className="text-white text-sm font-medium">View Details</Text>
-                    </TouchableOpacity>
+                  <View>
+                    <Text className="text-gray-500 text-xs">Total Amount</Text>
+                    <Text className="text-black font-bold text-xl">
+                      {formatCurrency(order.total, order.currency)}
+                    </Text>
                   </View>
+                  <TouchableOpacity className="bg-blue-500 rounded-lg px-4 py-2">
+                    <Text className="text-white text-sm font-medium">View Details</Text>
+                  </TouchableOpacity>
                 </View>
               </TouchableOpacity>
             ))
