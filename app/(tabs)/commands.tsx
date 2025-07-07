@@ -253,7 +253,7 @@ const OrdersScreen = () => {
         {/* Orders List */}
         <View className="px-6 pb-6">
           {filteredOrders.length === 0 ? (
-            <View className="bg-white rounded-xl p-8 shadow-sm border border-gray-100 items-center">
+            <View className="bg-white rounded-xl p-8 border-borders border items-center">
               <MaterialIcons name="inbox" size={48} color="#6b7280" />
               <Text className="text-black text-lg font-semibold mt-4 mb-2">No Orders Found</Text>
               <Text className="text-gray-500 text-center">
@@ -272,7 +272,7 @@ const OrdersScreen = () => {
             filteredOrders.map((order) => (
               <TouchableOpacity 
                 key={order.number} 
-                className="bg-white rounded-xl p-4 mb-3 shadow-sm border border-gray-100"
+                className="bg-white rounded-xl p-4 mb-3 border-borders border"
               >
                 {/* Header Row */}
                 <View className="flex-row items-center justify-between mb-3">

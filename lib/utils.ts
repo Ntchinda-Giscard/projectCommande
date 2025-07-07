@@ -112,3 +112,87 @@ type ParsedData = {
   };
   
   
+
+  type PartyInfo = {
+    plant: string;
+    location: string;
+    stockStatus: string;
+    onHandQty: number;
+    uom: string;
+    uomConversion: number;
+  };
+  
+  type Material = {
+    itemCode: string;
+    family: string;
+    description: string;
+    baseUoM: string;
+    salesUoM: string;
+    weightPerUoM: number;
+    purchaseUoM: string;
+    purchaseConversion: number;
+    minStockLevel: number;
+    category: string;
+    status: string;
+    salesPrice?: number;
+    parties: PartyInfo[];
+  };
+  
+  export const parseSageX3MaterialData = (raw: string): Material[] => {
+    const recs = raw.split('|').filter(Boolean);
+    const mats: Material[] = [];
+    let curr: Material | null = null;
+  
+    for (const rec of recs) {
+      const f = rec.split(';');
+      switch (f[0]) {
+        case 'I':
+          // push prior
+          if (curr) mats.push(curr);
+  
+          curr = {
+            family:        f[1],
+            itemCode:      f[2],
+            description:   f[3].replace(/~~FRA/g, ''), // strip language tag
+            baseUoM:       f[4] || f[6],               // X3 can repeat
+            salesUoM:      f[5] || f[7],
+            weightPerUoM:  parseFloat(f[8]) || 0,
+            purchaseUoM:   f[9],
+            purchaseConversion: parseFloat(f[10]) || 1,
+            minStockLevel: parseFloat(f[14]) || 0,
+            category:      f[16],
+            status:        f[17],
+            parties:       [],
+          };
+          break;
+  
+        case 'S':
+          if (curr) {
+            const price = parseFloat(f[4]);
+            if (!isNaN(price)) curr.salesPrice = price;
+          }
+          break;
+  
+        case 'P':
+          if (curr) {
+            curr.parties.push({
+              plant:         f[1],
+              location:      f[2],
+              stockStatus:   f[3],
+              onHandQty:     parseFloat(f[4]) || 0,
+              uom:           f[5],
+              uomConversion: parseFloat(f[6]) || 1,
+            });
+          }
+          break;
+  
+        default:
+          // ignore others
+          break;
+      }
+    }
+  
+    if (curr) mats.push(curr);
+    return mats;
+  };
+  
