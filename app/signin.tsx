@@ -79,7 +79,6 @@ export default function SignIn() {
         </View>
 
         <TouchableOpacity 
-          // style={[styles.loginButton, isLoading && styles.loginButtonDisabled]}
           className='bg-black rounded-xl p-4 flex items-center'
           onPress={handleLogin}
           disabled={isLoading}
@@ -91,11 +90,6 @@ export default function SignIn() {
           )}
         </TouchableOpacity>
 
-        {/* <TouchableOpacity style={styles.registerButton}>
-          <Text style={styles.registerButtonText}>
-            Don't have an account? Sign Up
-          </Text>
-        </TouchableOpacity> */}
       </View>
     </KeyboardAvoidingView>
   );
