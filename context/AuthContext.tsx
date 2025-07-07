@@ -1,6 +1,8 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import axios from 'axios'
 import * as SecureStore from 'expo-secure-store'
+import { callAdonixSoapServiceWithAuth } from "@/services/login";
+import { parseSageX3ExportData } from "@/lib/utils";
 
 interface AuthProps {
     authState?: {token: string | null, authenticated: boolean | null}
@@ -84,17 +86,36 @@ export const AuthProvider = ({children}: any) => {
             
             // Mock login validation
             if (username.length === 0 || password.length === 0) {
+
                 return { error: "Username and password are required" }
             }
-            
-            const mockToken = "login_token_" + Date.now()
-            
-            setAuthState({
-                token: mockToken,
-                authenticated: true
+
+            const loginResponse = await callAdonixSoapServiceWithAuth({
+                username: "admin",
+                password: "Wazasolutions2025@",
+                moduleToExport: "BPC",
+                userNameCriteria: username,
+                passwordCriteria: password
             })
             
-            await SecureStore.setItemAsync(TOKEN, mockToken)
+            
+
+            console.log( "GRP3 response" ,loginResponse['GRP3']['O_FILE'])
+            const extracted_data = parseSageX3ExportData(loginResponse['GRP3']['O_FILE'])
+            
+            
+            if (extracted_data.customer !== undefined){
+                const mockToken = extracted_data.customer[2]
+                console.log("mockToken", mockToken)
+                setAuthState({
+                    token: mockToken,
+                    authenticated: true
+                })
+                
+                await SecureStore.setItemAsync(TOKEN, mockToken)
+            }
+            
+           
             return {}
             
         } catch (error) {
@@ -124,3 +145,5 @@ export const AuthProvider = ({children}: any) => {
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
+
+

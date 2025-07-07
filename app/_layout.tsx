@@ -37,11 +37,10 @@ function RootLayoutNav() {
 
     const inAuthGroup = segments[0] === "(tabs)";
 
-    // if (authState?.authenticated && !inAuthGroup) {
-    //   // User is authenticated but not in the protected area, redirect to tabs
-    //   router.replace("/(tabs)");
-    // } else 
-    if (!authState?.authenticated && inAuthGroup) {
+    if (authState?.authenticated && !inAuthGroup) {
+      // User is authenticated but not in the protected area, redirect to tabs
+      router.replace("/(tabs)");
+    } else if (!authState?.authenticated && inAuthGroup) {
       // User is not authenticated but trying to access protected area, redirect to signin
       router.replace("/signin");
     }
