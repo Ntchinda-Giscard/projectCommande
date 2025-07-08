@@ -155,17 +155,25 @@ const OrdersScreen = () => {
 
   const formatDate = (dateString: string) => {
     try {
-      return new Date(dateString).toLocaleDateString('en-US', {
+      if (!/^\d{8}$/.test(dateString)) throw new Error("Invalid format");
+  
+      const year = parseInt(dateString.slice(0, 4), 10);
+      const month = parseInt(dateString.slice(4, 6), 10) - 1; // JS months = 0-indexed
+      const day = parseInt(dateString.slice(6, 8), 10);
+  
+      const date = new Date(year, month, day);
+  
+      return date.toLocaleDateString('en-US', {
         year: 'numeric',
         month: 'short',
-        day: 'numeric'
-      })
+        day: 'numeric',
+      });
     } catch {
-      return dateString
+      return dateString;
     }
-  }
+  };
 
-  const formatCurrency = (amount: number, currency = 'USD') => {
+  const formatCurrency = (amount: number, currency = 'XAF') => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: currency,
@@ -322,12 +330,13 @@ const OrdersScreen = () => {
                       <MaterialIcons name="calendar-today" size={16} color="#6b7280" />
                       <Text className="text-gray-600 text-sm ml-2">
                         {formatDate(order.date)}
+                        {/* {order.date} */}
                       </Text>
                     </View>
                     <View className="flex-row items-center">
                       <MaterialIcons name="shopping-cart" size={16} color="#6b7280" />
                       <Text className="text-gray-600 text-sm ml-2">
-                        {order.lines.length} items
+                        {order.lines.length} articles
                       </Text>
                     </View>
                   </View>
@@ -344,7 +353,7 @@ const OrdersScreen = () => {
                 {/* Total and Actions */}
                 <View className="flex-row items-center justify-between">
                   <View>
-                    <Text className="text-gray-500 text-xs">Total Amount</Text>
+                    <Text className="text-gray-500 text-xs">Montant total</Text>
                     <Text className="text-black font-bold text-xl">
                       {formatCurrency(order.total, order.currency)}
                     </Text>

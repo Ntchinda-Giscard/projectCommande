@@ -1,5 +1,13 @@
 import { create } from 'zustand'
 
+const formatToCompactDate = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0'); // months are 0-based
+  const day = String(date.getDate()).padStart(2, '0');
+
+  return `${year}${month}${day}`;
+};
+
 type Line = {
   itemCode: string;
   qty: number;
@@ -28,7 +36,7 @@ export const useCommandStore = create<CommandState>()((set) => ({
     site: "FR011",
     orderType: "SOI",
     customer: "FR001",
-    date: "20250707",
+    date: formatToCompactDate(new Date()),
     shipSite: "FR011",
     currency: "EUR",
     lines: [],
