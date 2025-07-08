@@ -5,6 +5,7 @@ import { MaterialIcons } from '@expo/vector-icons'
 import ArticesCard from '@/components/articles-card'
 import { useRouter } from 'expo-router'
 import { listArticles } from '@/services/articles-services'
+import { useCommandStore } from '@/lib/command-store'
 
 type PartyInfo = {
   plant: string;
@@ -59,6 +60,7 @@ const Articles = () => {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('all')
   const [availabilityFilter, setAvailabilityFilter] = useState<AvailabilityFilter>('all')
+  const { commandParams, setCommandParams } = useCommandStore()
   const router = useRouter()
 
   const loadArticles = async (isRefresh = false) => {
@@ -124,6 +126,8 @@ const Articles = () => {
         return [...prevCart, { itemCode, quantity: amount, price }]
       }
     })
+
+    console.log("Cart updated:", cart)
   }
 
   const handleRemoveFromCart = (itemCode: string, price: number, amount: number) => {
@@ -142,12 +146,48 @@ const Articles = () => {
       }
       return prevCart
     })
+
+    console.log("Cart updated:", cart)
   }
 
-  // Get unique categories
+  // Enhanced search function - case insensitive and includes multiple fields
+  const searchArticles = (article: Material, query: string): boolean => {
+    if (!query.trim()) return true
+    
+    const searchTerm = query.toLowerCase().trim()
+    
+    // Search in description
+    const descriptionMatch = article.description?.toLowerCase().includes(searchTerm) || false
+    
+    // Search in baseUoM
+    const baseUoMMatch = article.baseUoM?.toLowerCase().includes(searchTerm) || false
+    
+    // Search in itemCode
+    const itemCodeMatch = article.itemCode?.toLowerCase().includes(searchTerm) || false
+    
+    // Search in category/family
+    const categoryMatch = article.category?.toLowerCase().includes(searchTerm) || false
+    const familyMatch = article.family?.toLowerCase().includes(searchTerm) || false
+    
+    // Return true if any field matches
+    return descriptionMatch || baseUoMMatch || itemCodeMatch || categoryMatch || familyMatch
+  }
+
+  // Get unique categories with counts
   const categories = useMemo(() => {
-    const uniqueCategories = [...new Set(articles.map(article => article.category || article.family))]
-    return ['all', ...uniqueCategories.filter(Boolean)]
+    const categoryCount = articles.reduce((acc, article) => {
+      const category = article.category || article.family || 'Uncategorized'
+      acc[category] = (acc[category] || 0) + 1
+      return acc
+    }, {} as Record<string, number>)
+    
+    const uniqueCategories = Object.keys(categoryCount).filter(Boolean)
+    
+    return {
+      all: uniqueCategories,
+      counts: categoryCount,
+      total: articles.length
+    }
   }, [articles])
 
   // Availability filter options
@@ -163,9 +203,8 @@ const Articles = () => {
     return articles.filter(article => {
       const totalStock = article.parties.reduce((sum, party) => sum + party.onHandQty, 0)
       
-      // Search filter
-      const matchesSearch = article.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                           article.itemCode.toLowerCase().includes(searchQuery.toLowerCase())
+      // Enhanced search filter
+      const matchesSearch = searchArticles(article, searchQuery)
       
       // Category filter
       const matchesCategory = selectedCategory === 'all' || 
@@ -248,11 +287,21 @@ const Articles = () => {
     }
   }
 
+  // Clear all filters
+  const clearAllFilters = () => {
+    setSearchQuery('')
+    setSelectedCategory('all')
+    setAvailabilityFilter('all')
+  }
+
+  // Check if any filters are active
+  const hasActiveFilters = searchQuery.trim() !== '' || selectedCategory !== 'all' || availabilityFilter !== 'all'
+
   if (loading) {
     return (
       <View className="flex-1 justify-center items-center bg-gray-50">
         <ActivityIndicator size="large" color="#3b82f6" />
-        <Text className="text-gray-600 mt-4">Loading articles...</Text>
+        <Text className="text-gray-600 mt-4">Chargement des articles...</Text>
       </View>
     )
   }
@@ -268,7 +317,7 @@ const Articles = () => {
           onPress={() => loadArticles()}
           className="mt-4 bg-blue-500 px-6 py-3 rounded-lg"
         >
-          <Text className="text-white font-medium">Try Again</Text>
+          <Text className="text-white font-medium">Réessayer</Text>
         </TouchableOpacity>
       </View>
     )
@@ -284,7 +333,16 @@ const Articles = () => {
         </View>
         <AppButton
           label={`Panier (${cartTotals.totalItems}) - ${formatPrice(cartTotals.totalPrice)} XAF`}
-          onPress={() => router.push("/basket")}
+          onPress={() => {
+            setCommandParams({
+              ...commandParams,
+              lines: cart.map(item => ({
+                itemCode: item.itemCode,
+                qty: item.quantity,
+                price: item.price
+              }))
+            })
+            router.push("/basket")}}
           className='bg-blue-500 text-white px-4 py-3 rounded-lg flex flex-row items-center'
           textClasses='text-center font-medium text-white text-sm'
           icon={<MaterialIcons name="shopping-cart" color="white" size={18} />}
@@ -292,7 +350,7 @@ const Articles = () => {
       </View>
 
       {/* Availability Statistics */}
-      <View className="bg-white px-5 py-4 border-b border-gray-200">
+      {/* <View className="bg-white px-5 py-4 border-b border-gray-200">
         <Text className="text-sm font-medium text-gray-900 mb-3">État des stocks</Text>
         <View className="flex-row justify-between">
           <View className="items-center">
@@ -320,15 +378,15 @@ const Articles = () => {
             <Text className="text-gray-600 text-xs font-medium">Total</Text>
           </View>
         </View>
-      </View>
+      </View> */}
 
-      {/* Search Bar */}
+      {/* Enhanced Search Bar */}
       <View className="bg-white px-5 py-3 border-b border-gray-200">
         <View className="flex-row items-center bg-gray-100 rounded-lg px-3 py-2">
           <MaterialIcons name="search" size={20} color="#6b7280" />
           <TextInput
             className="flex-1 ml-2 text-gray-900"
-            placeholder="Rechercher des articles..."
+            placeholder="Rechercher par nom, code, catégorie ou UoM..."
             value={searchQuery}
             onChangeText={setSearchQuery}
             placeholderTextColor="#6b7280"
@@ -339,11 +397,29 @@ const Articles = () => {
             </TouchableOpacity>
           )}
         </View>
+        {searchQuery.trim() !== '' && (
+          <View className="mt-2">
+            <Text className="text-xs text-gray-500">
+              Recherche dans: nom, code article, catégorie, famille et unité de mesure
+            </Text>
+          </View>
+        )}
       </View>
 
       {/* Availability Filter */}
       <View className="bg-white px-5 py-3 border-b border-gray-200">
-        <Text className="text-sm font-medium text-gray-900 mb-3">Filtrer par disponibilité</Text>
+        <View className="flex-row items-center justify-between mb-3">
+          <Text className="text-sm font-medium text-gray-900">Filtrer par disponibilité</Text>
+          {hasActiveFilters && (
+            <TouchableOpacity 
+              onPress={clearAllFilters}
+              className="flex-row items-center bg-gray-100 px-3 py-1 rounded-full"
+            >
+              <MaterialIcons name="clear-all" size={16} color="#6b7280" />
+              <Text className="text-gray-600 text-xs ml-1">Effacer tout</Text>
+            </TouchableOpacity>
+          )}
+        </View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
           {availabilityOptions.map((option) => (
             <TouchableOpacity
@@ -377,24 +453,51 @@ const Articles = () => {
         </ScrollView>
       </View>
 
-      {/* Category Filter */}
+      {/* Enhanced Category Filter with View All */}
       <View className="bg-white px-5 py-3 border-b border-gray-200">
         <Text className="text-sm font-medium text-gray-900 mb-3">Filtrer par catégorie</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          {categories.map((category) => (
+          {/* View All Button */}
+          <TouchableOpacity
+            onPress={() => setSelectedCategory('all')}
+            className={`mr-3 px-4 py-2 rounded-full border flex-row items-center ${
+              selectedCategory === 'all'
+                ? "bg-blue-500 border-blue-500"
+                : "bg-white border-gray-300"
+            }`}
+          >
+            <MaterialIcons 
+              name="view-list" 
+              size={16} 
+              color={selectedCategory === 'all' ? "white" : "#6b7280"} 
+            />
+            <Text className={`font-medium ml-2 ${
+              selectedCategory === 'all' ? "text-white" : "text-gray-600"
+            }`}>
+              Voir tout ({categories.total})
+            </Text>
+          </TouchableOpacity>
+
+          {/* Category Buttons */}
+          {categories.all.map((category) => (
             <TouchableOpacity
               key={category}
               onPress={() => setSelectedCategory(category)}
-              className={`mr-3 px-4 py-2 rounded-full border ${
+              className={`mr-3 px-4 py-2 rounded-full border flex-row items-center ${
                 selectedCategory === category
                   ? "bg-blue-500 border-blue-500"
                   : "bg-white border-gray-300"
               }`}
             >
-              <Text className={`font-medium capitalize ${
+              <MaterialIcons 
+                name="category" 
+                size={16} 
+                color={selectedCategory === category ? "white" : "#6b7280"} 
+              />
+              <Text className={`font-medium ml-2 capitalize ${
                 selectedCategory === category ? "text-white" : "text-gray-600"
               }`}>
-                {category === 'all' ? 'Toutes les catégories' : category}
+                {category} ({categories.counts[category]})
               </Text>
             </TouchableOpacity>
           ))}
@@ -404,21 +507,31 @@ const Articles = () => {
       {/* Articles List */}
       {filteredArticles.length === 0 ? (
         <View className="flex-1 justify-center items-center px-6">
-          <MaterialIcons name="inventory-2" size={64} color="#6b7280" />
+          <MaterialIcons name="search-off" size={64} color="#6b7280" />
           <Text className="text-gray-900 text-lg font-semibold mt-4 text-center">
             Aucun article trouvé
           </Text>
           <Text className="text-gray-600 text-center mt-2">
-            {searchQuery || selectedCategory !== 'all' || availabilityFilter !== 'all'
+            {hasActiveFilters
               ? "Essayez d'ajuster vos critères de recherche ou de filtre"
               : "Aucun article n'est actuellement disponible"}
           </Text>
-          <TouchableOpacity 
-            onPress={onRefresh}
-            className="mt-4 bg-blue-500 px-4 py-2 rounded-lg"
-          >
-            <Text className="text-white font-medium">Actualiser</Text>
-          </TouchableOpacity>
+          <View className="flex-row mt-4 space-x-2">
+            {hasActiveFilters && (
+              <TouchableOpacity 
+                onPress={clearAllFilters}
+                className="bg-gray-500 px-4 py-2 rounded-lg mr-2"
+              >
+                <Text className="text-white font-medium">Effacer les filtres</Text>
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity 
+              onPress={onRefresh}
+              className="bg-blue-500 px-4 py-2 rounded-lg"
+            >
+              <Text className="text-white font-medium">Actualiser</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       ) : (
         <FlatList
@@ -444,7 +557,18 @@ const Articles = () => {
                 Affichage de {filteredArticles.length} sur {articles.length} articles
                 {availabilityFilter !== 'all' && ` • Filtre: ${availabilityOptions.find(opt => opt.key === availabilityFilter)?.label}`}
                 {selectedCategory !== 'all' && ` • Catégorie: ${selectedCategory}`}
+                {searchQuery.trim() !== '' && ` • Recherche: "${searchQuery}"`}
               </Text>
+              {hasActiveFilters && (
+                <TouchableOpacity 
+                  onPress={clearAllFilters}
+                  className="mt-2 self-start"
+                >
+                  <Text className="text-blue-500 text-sm underline">
+                    Effacer tous les filtres
+                  </Text>
+                </TouchableOpacity>
+              )}
             </View>
           )}
         />

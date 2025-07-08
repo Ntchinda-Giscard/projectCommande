@@ -35,7 +35,7 @@ const parseSoapResponse = async (response: { text: () => Promise<string> }) => {
 
   const resultJson = JSON.parse(resultXmlCdata);
 
-  console.log('✅ Extracted JSON:', resultJson);
+  // console.log('✅ Extracted JSON:', resultJson);
   return resultJson;
 };
 

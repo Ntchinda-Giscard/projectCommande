@@ -2,6 +2,7 @@ import { XMLParser } from 'fast-xml-parser';
 
 // Only needed in React Native for base64 encoding
 import { Buffer } from 'buffer';
+import { parseSageX3LoginFlatString } from '@/lib/utils';
 
 type LoginParams = {
   username: string;
@@ -35,7 +36,7 @@ const parseSoapResponse = async (response: { text: () => Promise<string> }) => {
 
   const resultJson = JSON.parse(resultXmlCdata);
 
-  console.log('✅ Extracted JSON:', resultJson);
+  // console.log('✅ Extracted JSON:', resultJson);
   return resultJson;
 };
 
@@ -113,7 +114,9 @@ export const callAdonixSoapServiceWithAuth = async (params: LoginParams) => {
 
     // ✅ Parse the actual data
     const resultJson = await parseSoapResponse(response);
-    return resultJson;
+    const jsonParsed = parseSageX3LoginFlatString(resultJson['GRP3']['O_FILE'])
+    console.log("jsonParsed", jsonParsed)
+    return jsonParsed;
   } catch (error) {
     console.error('Adonix SOAP Error:', error);
     throw error;

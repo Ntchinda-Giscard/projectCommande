@@ -3,6 +3,7 @@ import axios from 'axios'
 import * as SecureStore from 'expo-secure-store'
 import { callAdonixSoapServiceWithAuth } from "@/services/login";
 import { parseSageX3ExportData } from "@/lib/utils";
+import { useUserStore } from "@/lib/user-store";
 
 interface AuthProps {
     authState?: {token: string | null, authenticated: boolean | null}
@@ -20,6 +21,8 @@ export const useAuth = () => {
 }
 
 export const AuthProvider = ({children}: any) => {
+
+    const {setAuthUser} = useUserStore()
     
     const [authState, setAuthState] = useState<{
         token: string | null,
@@ -100,13 +103,13 @@ export const AuthProvider = ({children}: any) => {
             
             
 
-            console.log( "GRP3 response" ,loginResponse['GRP3']['O_FILE'])
-            const extracted_data = parseSageX3ExportData(loginResponse['GRP3']['O_FILE'])
+            const extracted_data = loginResponse
             
             
-            if (extracted_data.customer !== undefined){
-                const mockToken = extracted_data.customer[2]
+            if (extracted_data.header?.customerCode !== undefined){
+                const mockToken = extracted_data.header.customerCode
                 console.log("mockToken", mockToken)
+                setAuthUser(extracted_data)
                 setAuthState({
                     token: mockToken,
                     authenticated: true

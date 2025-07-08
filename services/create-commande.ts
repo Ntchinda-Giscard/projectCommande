@@ -2,58 +2,54 @@ import { XMLParser } from 'fast-xml-parser';
 
 // Only needed in React Native for base64 encoding
 import { Buffer } from 'buffer';
-import { parseSageX3MaterialData } from '@/lib/utils';
+import { buildIFile, parseSageX3MaterialData } from '@/lib/utils';
 
-type ArticlesParams = {
+
+type Line = {
+    itemCode: string;
+    qty: number;
+    price?: number;
+  };
+  
+  type CommandParams = {
+    site: string;         // e.g. "FR011"
+    orderType: string;    // e.g. "SOI"
+    customer: string;     // e.g. "AU002"
+    date: string;         // "YYYYMMDD"
+    shipSite: string;     // e.g. "FR011"
+    currency: string;     // e.g. "EUR"
+    lines: Line[];
+  };
+
+type CreateCommandeParams = {
   username: string;
   password: string;
-  moduleToExport: string;
+  moduleToImport: string;
+  command: CommandParams;
 };
 
-const parseSoapResponse = async (response: { text: () => Promise<string> }) => {
-  const xmlText = await response.text();
 
-  const parser = new XMLParser({
-    ignoreAttributes: false,
-    cdataPropName: '__cdata', // capture CDATA content
-  });
 
-  const json = parser.parse(xmlText);
 
-  const resultXmlCdata =
-    json?.['soapenv:Envelope']
-        ?.['soapenv:Body']
-        ?.['wss:runResponse']
-        ?.['runReturn']
-        ?.['resultXml']
-        ?.['__cdata'];
-
-  if (!resultXmlCdata) {
-    throw new Error('No resultXml CDATA found');
-  }
-
-  const resultJson = JSON.parse(resultXmlCdata);
-
-//   console.log('✅ Extracted JSON:', resultJson);
-  return resultJson;
-};
-
-export const listArticles = async (params: ArticlesParams) => {
+export const createCommande = async (params: CreateCommandeParams) => {
   const credentials = `${params.username}:${params.password}`;
 
   // React Native: use Buffer instead of btoa
   const encodedCredentials = Buffer.from(credentials).toString('base64');
   const authHeader = `Basic ${encodedCredentials}`;
+  const iFile = buildIFile(params.command);
+
+  console.log("iFile", iFile);
+
 
   const jsonPayload = {
     GRP1: {
-      I_MODEXP: params.moduleToExport,
-      I_CHRONO: 'NO',
-    },
-    GRP2: [],
-    GRP3: {
+
+      I_MODIMP: params.moduleToImport,
+      I_AOWSTA: 'NO',
       I_EXEC: 'REALTIME',
       I_RECORDSEP: '|',
+      I_FILE: iFile
     },
   };
 
@@ -66,10 +62,12 @@ export const listArticles = async (params: ArticlesParams) => {
             <codeLang xsi:type="xsd:string">FRA</codeLang>
             <poolAlias xsi:type="xsd:string">ZBPI</poolAlias>
             <poolId xsi:type="xsd:string">?</poolId>
-            <requestConfig xsi:type="xsd:string">adxwss.optreturn=JSON&amp;adxwss.beautify=true</requestConfig>
+            <requestConfig xsi:type="xsd:string"> <![CDATA[adxwss.optreturn=JSON&adxwss.beautify=true&adxwss.trace.on=off]]></requestConfig>
          </callContext>
-         <publicName xsi:type="xsd:string">AOWSEXPORT</publicName>
-         <inputXml xsi:type="xsd:string">${JSON.stringify(jsonPayload)}</inputXml>
+         <publicName xsi:type="xsd:string">AOWSIMPORT</publicName>
+         <inputXml xsi:type="xsd:string">
+		<![CDATA[${JSON.stringify(jsonPayload)}]]>
+         </inputXml>
       </wss:run>
    </soapenv:Body>
 </soapenv:Envelope>`;
@@ -107,11 +105,11 @@ export const listArticles = async (params: ArticlesParams) => {
     // console.log('Raw SOAP Response:', responseText);
 
     // ✅ Parse the actual data
-    const resultJson = await parseSoapResponse(response);
-    const articles = resultJson["GRP3"]["O_FILE"];
-    const parsedArticles = parseSageX3MaterialData(articles);
-    console.log("Articles parsed:", JSON.stringify(parsedArticles.slice(0, 1),null, 2))
-    return parsedArticles;
+    if (response.status === 200) {
+      return await response.text()
+    }
+
+    return await response.text()
   } catch (error) {
     console.error('Adonix SOAP Error:', error);
     throw error;

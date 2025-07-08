@@ -195,4 +195,205 @@ type ParsedData = {
     if (curr) mats.push(curr);
     return mats;
   };
+
+
+  type Line = {
+    itemCode: string;
+    qty: number;
+    price?: number;
+  };
+  
+  type CommandParams = {
+    site: string;         // e.g. "FR011"
+    orderType: string;    // e.g. "SOI"
+    customer: string;     // e.g. "AU002"
+    date: string;         // "YYYYMMDD"
+    shipSite: string;     // e.g. "FR011"
+    currency: string;     // e.g. "EUR"
+    lines: Line[];
+  };
+  
+  /**
+   * Build the I_FILE string: one E‑record, many L‑records, and END
+   */
+  export const buildIFile = ({
+    site,
+    orderType,
+    customer,
+    date,
+    shipSite,
+    currency,
+    lines,
+  }: CommandParams): string => {
+    // Header: E;site;orderType;;customer;date;;shipSite;currency;;;;;
+    const headerFields = [
+      "E",
+      site,
+      orderType,
+      "",           // leave order number blank → X3 will generate
+      customer,
+      date,
+      "",           // reference
+      shipSite,
+      currency,
+      "", "", "", "", "", // pad out unused header slots
+    ];
+    const header = headerFields.join(";");
+  
+    // Lines: L;itemCode;;UN;qty;price;0;0;0;;  (you can extend discount/tax as needed)
+    const lineRecs = lines.map(({ itemCode, qty, price = 0 }) => {
+      const fields = [
+        "L",
+        itemCode,
+        "",        // use default description
+        "UN",      // sales UoM
+        qty.toString(),
+        price.toString(),
+        "0", "0", "0", "",  // discount, tax etc
+      ];
+      return fields.join(";");
+    });
+  
+    // End marker
+    const end = "END";
+  
+    // Put it all together with | separators
+    return [header, ...lineRecs, end].join("|");
+  };
+
+  type Header = {
+    country: string;
+    customerCode: string;
+    invoiceAddress: string;
+    deliveryAddress: string;
+    orderAddress: string;
+    transportAddress: string;
+    currency: string;
+    contactCode: string;
+    deliveryMode: string;
+    paymentTerm: string;
+    transportType: string;
+    fixedCharges: number;
+    variableCharges: number;
+    netAmount: number;
+    numberOfPackages: number;
+  };
+  
+  type Address = {
+    code: string;
+    city: string;
+    addressLine: string;
+    postalCode: string;
+    country: string;
+    phone: string;
+    contactCode: string;
+  };
+  
+  type Recipient = {
+    addressCode: string;
+    companyName: string;
+    quantity: number;
+  };
+  
+  type Contact = {
+    code: string;
+    civilityCode: string;
+    firstName: string;
+    lastName: string;
+    phone: string;
+    roleCode: string;
+  };
+  
+  type ParsedDataLogin = {
+    header: Header | null;
+    addresses: Address[];
+    recipients: Recipient[];
+    contact: Contact | null;
+  };
+  
+  /**
+   * Parses a Sage X3 flat export string into structured JSON
+   */
+  export function parseSageX3LoginFlatString(raw: string): ParsedDataLogin {
+    const result: ParsedDataLogin = {
+      header: null,
+      addresses: [],
+      recipients: [],
+      contact: null,
+    };
+  
+    const lines = raw.split('|').filter(Boolean);
+    for (const line of lines) {
+      const fields = line.split(';');
+      const type = fields[0];
+  
+      switch (type) {
+        case 'B': {
+          // Header
+          result.header = {
+            country: fields[1],
+            customerCode: fields[2],
+            invoiceAddress: fields[5] || fields[6] || '',
+            deliveryAddress: fields[6] || '',
+            orderAddress: fields[7] || '',
+            transportAddress: fields[8] || '',
+            currency: fields[9],
+            contactCode: fields[13],
+            deliveryMode: fields[14],
+            paymentTerm: fields[15],
+            transportType: fields[16],
+            fixedCharges: Number(fields[17]) || 0,
+            variableCharges: Number(fields[18]) || 0,
+            netAmount: Number(fields[19]) || 0,
+            numberOfPackages: Number(fields[20]) || 0,
+          };
+          break;
+        }
+  
+        case 'A': {
+          // Address
+          const addr: Address = {
+            code: fields[1],
+            city: fields[2],
+            addressLine: fields[3],
+            postalCode: fields[6],
+            country: fields[7],
+            phone: fields[8],
+            contactCode: fields[11],
+          };
+          result.addresses.push(addr);
+          break;
+        }
+  
+        case 'D': {
+          // Recipient
+          const rec: Recipient = {
+            addressCode: fields[1],
+            companyName: fields[2],
+            quantity: Number(fields[6]) || 0,
+          };
+          result.recipients.push(rec);
+          break;
+        }
+  
+        case 'C': {
+          // Contact
+          result.contact = {
+            code: fields[1],
+            civilityCode: fields[2],
+            firstName: fields[3],
+            lastName: fields[4],
+            phone: fields[5],
+            roleCode: fields[6],
+          };
+          break;
+        }
+  
+        default:
+          console.warn('Unknown record type:', type);
+      }
+    }
+  
+    return result;
+  }
   
