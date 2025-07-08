@@ -1,5 +1,5 @@
 import { View, Text, ScrollView, TouchableOpacity, SafeAreaView, StatusBar, Alert, TextInput } from 'react-native'
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import { MaterialIcons } from '@expo/vector-icons'
 import { useRouter } from 'expo-router'
 import AppButton from '@/components/app-button'
@@ -22,7 +22,7 @@ type BasketItemDisplay = Line & {
 };
 
 const BasketScreen = () => {
-  const { commandParams, setCommandParams } = useCommandStore()
+  const { commandParams, setCommandParams, updateCommandField } = useCommandStore()
   const { user } = useUserStore()
   const router = useRouter()
   const [editingQuantity, setEditingQuantity] = useState<string | null>(null)
@@ -83,6 +83,11 @@ const BasketScreen = () => {
       lines: updatedLines
     })
   }
+
+  const handleAddressChange = (addressCode: string) => {
+    setSelectedAddressCode(addressCode);
+    updateCommandField("shipSite", addressCode);
+  };
 
   // Add new item to basket (called from articles screen)
   const addItemToBasket = (itemCode: string, price: number, quantity: number = 1) => {
@@ -201,22 +206,39 @@ const BasketScreen = () => {
 
   // Process order function
   const processOrder = async () => {
+    if (!selectedAddressCode) {
+      Alert.alert("Erreur", "Veuillez sélectionner une adresse.")
+      return
+    }
+    
     try {
+      console.log("selectedAddressCode", selectedAddressCode)
+      
+      // Update the shipSite field first
+      updateCommandField("shipSite", selectedAddressCode);
+      
+      // Create updated command params for the API call
+      const updatedCommandParams = {
+        ...commandParams,
+        shipSite: selectedAddressCode
+      };
+  
       console.log("Processing order:", {
-        commandParams,
+        commandParams: commandParams,
         totals: basketTotals,
         timestamp: new Date().toISOString()
       })
       
-      // Here you would call your order API
+      // Use the updated params for the API call
       const result = await createCommande({
         username: "admin",
         password: "Wazasolutions2025@",
         moduleToImport: "YSOH",
-        command: commandParams
+        command: commandParams  // Use updated params here
       })
-
-      console.log("result", result)      
+  
+      console.log("result", result)
+      
       Alert.alert(
         "Succès", 
         `Commande validée avec succès !\n\nRéférence: ${commandParams.orderType}-${commandParams.date}\nTotal: ${formatCurrency(basketTotals.totalPrice)}`,
@@ -260,19 +282,15 @@ const BasketScreen = () => {
     setTempQuantity('')
   }
 
+  useEffect(() => {
+    // console.log("user", user)
+  }, [user])
+
   if (basketLines.length === 0) {
     return (
       <SafeAreaView className="flex-1 bg-gray-50">
         <StatusBar barStyle="dark-content" backgroundColor="#f9fafb" />
-        <View style={{ padding: 20 }}>
-      <AddressDropdown
-        label="Sélectionnez l'adresse"
-        addresses={user?.addresses || []}
-        value={selectedAddressCode}
-        onChange={setSelectedAddressCode}
-        placeholder="Choisissez une adresse..."
-      />
-    </View>
+        
         
         {/* Header */}
         <View className="px-6 py-4 bg-white border-b border-gray-200">
@@ -281,6 +299,8 @@ const BasketScreen = () => {
             {commandParams.orderType} • Site: {commandParams.site} • Client: {commandParams.customer}
           </Text>
         </View>
+
+        
 
         {/* Empty State */}
         <View className="flex-1 justify-center items-center px-6">
@@ -380,6 +400,14 @@ const BasketScreen = () => {
           </TouchableOpacity>
         </View>
       </View>
+      <View>
+      <AddressDropdown
+        addresses={user?.addresses || []}
+        value={selectedAddressCode}
+        onChange={handleAddressChange}  // Use the new handler
+        placeholder="Choisissez une adresse..."
+      />
+    </View>
 
       {/* Basket Items */}
       <ScrollView className="flex-1 px-6" showsVerticalScrollIndicator={false}>

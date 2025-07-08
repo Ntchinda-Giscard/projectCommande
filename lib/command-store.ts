@@ -19,18 +19,27 @@ type CommandParams = {
 interface CommandState {
   commandParams: CommandParams;
   setCommandParams: (params: CommandParams) => void;
+  updateCommandField: <K extends keyof CommandParams>(key: K, value: CommandParams[K]) => void;
+
 }
 
 export const useCommandStore = create<CommandState>()((set) => ({
   commandParams: {
     site: "FR011",
     orderType: "SOI",
-    customer: "AU002",
+    customer: "FR001",
     date: "20250707",
     shipSite: "FR011",
     currency: "EUR",
     lines: [],
   },
   setCommandParams: (params) => set({ commandParams: params }),
+  updateCommandField: (key, value) =>
+    set((state) => ({
+      commandParams: {
+        ...state.commandParams,
+        [key]: value,
+      },
+    })),
 }))
 

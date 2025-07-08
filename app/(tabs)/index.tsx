@@ -3,6 +3,8 @@
 import { View, Text, ScrollView, TouchableOpacity, SafeAreaView, StatusBar } from "react-native"
 import { MaterialIcons } from "@expo/vector-icons"
 import { useRouter } from "expo-router"
+import { useUserStore } from "@/lib/user-store"
+import { useEffect } from "react"
 
 // Mock data
 const mockClientData = {
@@ -17,6 +19,7 @@ const mockClientData = {
 }
 
 const HomeScreen = () => {
+  const user  = useUserStore((state) => state.user)
   const router = useRouter()
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -33,13 +36,20 @@ const HomeScreen = () => {
     }
   }
 
+  useEffect(() => {
+    if (!user) {
+      console.log("user is not logged in")
+    }
+    console.log(user)
+  }, [user])
+
   return (
     <SafeAreaView className="flex-1">
       <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
 
       {/* Header */}
       <View className="px-6 py-4 border-b border-gray-200">
-        <Text className="text-black text-2xl font-bold mb-1">Your Orders</Text>
+        <Text className="text-black text-2xl font-bold mb-1">{user?.contact?.firstName} {user?.contact?.lastName}</Text>
         <Text className="text-gray-600">Track and manage your orders</Text>
       </View>
 
@@ -77,14 +87,14 @@ const HomeScreen = () => {
 
         {/* Quick Actions */}
         <View className="flex-row justify-between mb-6">
-          <TouchableOpacity className="bg-black rounded-xl p-4 flex-1 mr-2 flex-row items-center justify-center">
+          <TouchableOpacity onPress={() => router.push("/(tabs)/articles")} className="bg-black rounded-xl p-4 flex-1 mr-2 flex-row items-center justify-center">
             <MaterialIcons name="add" size={20} color="white" />
-            <Text className="text-white font-semibold ml-2">New Order</Text>
+            <Text className="text-white font-semibold text-xs ml-2">Nouvelle commande</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity className="bg-gray-500 rounded-xl p-4 flex-1 ml-2 flex-row items-center justify-center">
+          <TouchableOpacity onPress={() => router.push("/(tabs)/commands")} className="bg-gray-500 rounded-xl p-4 flex-1 ml-2 flex-row items-center justify-center">
             <MaterialIcons name="search" size={20} color="white" />
-            <Text className="text-white font-semibold ml-2">Track Order</Text>
+            <Text className="text-white font-semibold text-xs ml-2">Suivre commande</Text>
           </TouchableOpacity>
         </View>
 
@@ -92,7 +102,7 @@ const HomeScreen = () => {
         <View className="mb-6">
           <View className="flex-row items-center justify-between mb-4">
             <Text className="text-black text-lg font-semibold">Recent Orders</Text>
-            <TouchableOpacity onPress={() => router.push("/commands")} >
+            <TouchableOpacity onPress={() => router.push("/(tabs)/commands")} >
               <Text className="text-gray-600 text-sm">View All</Text>
             </TouchableOpacity>
           </View>

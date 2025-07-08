@@ -53,7 +53,8 @@ const AddressDropdown: React.FC<AddressDropdownProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: 16,
+    // marginBottom: 16,
+    paddingHorizontal: 25,
   },
   label: {
     fontSize: 16,
@@ -66,7 +67,7 @@ const styles = StyleSheet.create({
     borderColor: '#ccc',
     borderWidth: 1,
     borderRadius: 8,
-    paddingHorizontal: 16,
+    paddingHorizontal: 25,
     backgroundColor: '#fff',
   },
   placeholderStyle: {
