@@ -3,6 +3,7 @@ import { XMLParser } from 'fast-xml-parser';
 // Only needed in React Native for base64 encoding
 import { Buffer } from 'buffer';
 import { buildIFile, parseSageX3MaterialData } from '@/lib/utils';
+import { ENDPOINT_URL } from '@/lib/url';
 
 
 type Line = {
@@ -76,7 +77,7 @@ export const createCommande = async (params: CreateCommandeParams) => {
 
   try {
     const response = await fetch(
-      'http://192.168.2.118:8124/soap-generic/syracuse/collaboration/syracuse/CAdxWebServiceXmlCC',
+      ENDPOINT_URL,
       {
         method: 'POST',
         headers: {

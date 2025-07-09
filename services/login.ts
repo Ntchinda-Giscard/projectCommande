@@ -3,6 +3,7 @@ import { XMLParser } from 'fast-xml-parser';
 // Only needed in React Native for base64 encoding
 import { Buffer } from 'buffer';
 import { parseSageX3LoginFlatString } from '@/lib/utils';
+import { ENDPOINT_URL } from '@/lib/url';
 
 type LoginParams = {
   username: string;
@@ -84,7 +85,7 @@ export const callAdonixSoapServiceWithAuth = async (params: LoginParams) => {
 
   try {
     const response = await fetch(
-      'http://192.168.2.118:8124/soap-generic/syracuse/collaboration/syracuse/CAdxWebServiceXmlCC',
+      ENDPOINT_URL,
       {
         method: 'POST',
         headers: {

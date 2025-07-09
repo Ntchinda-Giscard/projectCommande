@@ -50,10 +50,11 @@ const OrdersScreen = () => {
         moduleToExport: "SOH",
         usercode: storedToken,
       })
+      const sortedCommands = fetchedCommands.sort((a, b) => b.date.localeCompare(a.date))
 
-      setCommands(fetchedCommands || [])
+      setCommands(sortedCommands || [])
       setToken(storedToken)
-      console.log("Orders loaded:", fetchedCommands?.length || 0)
+      console.log("Orders loaded:", sortedCommands?.length || 0)
     } catch (error) {
       console.error("Error loading orders:", error)
       setCommands([])

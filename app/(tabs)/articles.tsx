@@ -5,7 +5,6 @@ import { MaterialIcons } from '@expo/vector-icons'
 import ArticesCard from '@/components/articles-card'
 import { useRouter } from 'expo-router'
 import { listArticles } from '@/services/articles-services'
-import { useCommandStore } from '@/lib/command-store'
 
 type PartyInfo = {
   plant: string;
@@ -60,7 +59,6 @@ const Articles = () => {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('all')
   const [availabilityFilter, setAvailabilityFilter] = useState<AvailabilityFilter>('all')
-  const { commandParams, setCommandParams } = useCommandStore()
   const router = useRouter()
 
   const loadArticles = async (isRefresh = false) => {
@@ -333,52 +331,12 @@ const Articles = () => {
         </View>
         <AppButton
           label={`Panier (${cartTotals.totalItems}) - ${formatPrice(cartTotals.totalPrice)} XAF`}
-          onPress={() => {
-            setCommandParams({
-              ...commandParams,
-              lines: cart.map(item => ({
-                itemCode: item.itemCode,
-                qty: item.quantity,
-                price: item.price
-              }))
-            })
-            router.push("/basket")}}
+          onPress={() => router.push("/basket")}
           className='bg-blue-500 text-white px-4 py-3 rounded-lg flex flex-row items-center'
           textClasses='text-center font-medium text-white text-sm'
           icon={<MaterialIcons name="shopping-cart" color="white" size={18} />}
         />
       </View>
-
-      {/* Availability Statistics */}
-      {/* <View className="bg-white px-5 py-4 border-b border-gray-200">
-        <Text className="text-sm font-medium text-gray-900 mb-3">État des stocks</Text>
-        <View className="flex-row justify-between">
-          <View className="items-center">
-            <View className="w-8 h-8 rounded-full bg-green-100 items-center justify-center mb-1">
-              <Text className="text-green-600 text-lg font-bold">{availabilityStats.available}</Text>
-            </View>
-            <Text className="text-green-600 text-xs font-medium">Disponible</Text>
-          </View>
-          <View className="items-center">
-            <View className="w-8 h-8 rounded-full bg-yellow-100 items-center justify-center mb-1">
-              <Text className="text-yellow-600 text-lg font-bold">{availabilityStats.lowStock}</Text>
-            </View>
-            <Text className="text-yellow-600 text-xs font-medium">Stock faible</Text>
-          </View>
-          <View className="items-center">
-            <View className="w-8 h-8 rounded-full bg-red-100 items-center justify-center mb-1">
-              <Text className="text-red-600 text-lg font-bold">{availabilityStats.unavailable}</Text>
-            </View>
-            <Text className="text-red-600 text-xs font-medium">Indisponible</Text>
-          </View>
-          <View className="items-center">
-            <View className="w-8 h-8 rounded-full bg-gray-100 items-center justify-center mb-1">
-              <Text className="text-gray-600 text-lg font-bold">{availabilityStats.total}</Text>
-            </View>
-            <Text className="text-gray-600 text-xs font-medium">Total</Text>
-          </View>
-        </View>
-      </View> */}
 
       {/* Enhanced Search Bar */}
       <View className="bg-white px-5 py-3 border-b border-gray-200">
