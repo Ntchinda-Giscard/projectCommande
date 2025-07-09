@@ -5,6 +5,10 @@ import { MaterialIcons } from '@expo/vector-icons'
 import ArticesCard from '@/components/articles-card'
 import { useRouter } from 'expo-router'
 import { listArticles } from '@/services/articles-services'
+import { getTarif } from '@/services/tarif-service'
+import { useUserStore } from '@/lib/user-store'
+import { useCommandStore } from '@/lib/command-store'
+import { useArticleStore } from '@/lib/article-store'
 
 type PartyInfo = {
   plant: string;
@@ -59,7 +63,10 @@ const Articles = () => {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('all')
   const [availabilityFilter, setAvailabilityFilter] = useState<AvailabilityFilter>('all')
+  const { commandParams, setCommandParams, updateCommandField } = useCommandStore()
   const router = useRouter()
+  
+  const setStoreArticles = useArticleStore((state) => state.setArticles)
 
   const loadArticles = async (isRefresh = false) => {
     try {
@@ -75,6 +82,8 @@ const Articles = () => {
       })
       
       setArticles(fetchedArticles || [])
+      setStoreArticles(fetchedArticles || [])
+      
       console.log("Articles loaded:", fetchedArticles?.length || 0)
     } catch (err) {
       console.error("Error loading articles:", err)
@@ -111,7 +120,23 @@ const Articles = () => {
     }
   }
 
-  const handleAddToCart = (itemCode: string, price: number, amount: number) => {
+  const handleAddToCart = async (itemCode: string, price: number, amount: number) => {
+    // const item = articles.find(item => item.itemCode === itemCode)
+    // if (item) {
+    //   const response =  await getTarif({
+    //     article: itemCode,
+    //     client: user?.header?.customerCode || '',
+    //     qty: amount,
+    //     cur: 'EUR',
+    //     svte: 'FR011',
+    //     //@ts-ignore
+    //     sexp: user?.addresses[0]?.code,
+    //     uom: item.salesUoM,
+    //     username: 'admin',
+    //     password: 'Wazasolutions2025@',
+    //   })
+    // }
+    
     setCart(prevCart => {
       const existingItem = prevCart.find(item => item.itemCode === itemCode)
       if (existingItem) {
@@ -124,6 +149,10 @@ const Articles = () => {
         return [...prevCart, { itemCode, quantity: amount, price }]
       }
     })
+
+    
+    // console.log("Item:", item)
+    
 
     console.log("Cart updated:", cart)
   }
@@ -235,30 +264,19 @@ const Articles = () => {
   const cartTotals = useMemo(() => {
     const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0)
     const totalPrice = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0)
+    setCommandParams({
+      ...commandParams,
+      lines: cart.map(item => ({
+        itemCode: item.itemCode,
+        qty: item.quantity,
+        price: item.price
+      }))
+    })
     return { totalItems, totalPrice }
   }, [cart])
 
   // Calculate availability statistics
-  const availabilityStats = useMemo(() => {
-    const stats = articles.reduce((acc, article) => {
-      const totalStock = article.parties.reduce((sum, party) => sum + party.onHandQty, 0)
-      
-      if (totalStock === 0) {
-        acc.unavailable++
-      } else if (totalStock <= 5) {
-        acc.lowStock++
-      } else {
-        acc.available++
-      }
-      
-      return acc
-    }, { available: 0, lowStock: 0, unavailable: 0 })
-    
-    return {
-      ...stats,
-      total: articles.length
-    }
-  }, [articles])
+
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('fr-FR', {
@@ -330,7 +348,8 @@ const Articles = () => {
           <Text className="text-gray-600 text-sm">{articles.length} articles au total</Text>
         </View>
         <AppButton
-          label={`Panier (${cartTotals.totalItems}) - ${formatPrice(cartTotals.totalPrice)} XAF`}
+          // label={`Panier (${cartTotals.totalItems}) - ${formatPrice(cartTotals.totalPrice)} XAF`}
+          label={`Panier (${cartTotals.totalItems})`}
           onPress={() => router.push("/basket")}
           className='bg-blue-500 text-white px-4 py-3 rounded-lg flex flex-row items-center'
           textClasses='text-center font-medium text-white text-sm'
@@ -536,3 +555,4 @@ const Articles = () => {
 }
 
 export default Articles
+

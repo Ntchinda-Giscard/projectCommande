@@ -6,6 +6,31 @@ import { buildIFile, parseSageX3MaterialData } from '@/lib/utils';
 import { ENDPOINT_URL } from '@/lib/url';
 
 
+
+export const extractSageStatus = (xml: string): number | null => {
+  const parser = new XMLParser({
+    ignoreAttributes: false,
+    attributeNamePrefix: '@_',
+    removeNSPrefix: true, // optional: removes soapenv:, wss:, etc.
+    parseTagValue: true,
+    parseAttributeValue: true,
+  });
+
+  try {
+    const jsonObj = parser.parse(xml);
+
+    const runReturn =
+      jsonObj?.Envelope?.Body?.runResponse?.runReturn;
+
+    const status = runReturn?.status;
+    return typeof status === 'number' ? status : parseInt(status || '0');
+  } catch (err) {
+    console.error('Failed to parse Sage X3 SOAP XML:', err);
+    return null;
+  }
+};
+
+
 type Line = {
     itemCode: string;
     qty: number;
@@ -102,15 +127,20 @@ export const createCommande = async (params: CreateCommandeParams) => {
     }
 
     // Optional debug
-    // const responseText = await response.text();
+    // const responseText = await response.text();return
     // console.log('Raw SOAP Response:', responseText);
 
     // ✅ Parse the actual data
     if (response.status === 200) {
-      return await response.text()
+       return await response.text()
     }
 
-    return await response.text()
+    const textResponse = await response.text()
+    const status = extractSageStatus(textResponse)
+    if (status !== 1) {
+      throw Error('Erreur lors de la creation de la commande')
+    }
+    return await response
   } catch (error) {
     console.error('Adonix SOAP Error:', error);
     throw error;

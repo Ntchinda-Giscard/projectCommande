@@ -147,22 +147,21 @@ type ParsedData = {
       const f = rec.split(';');
       switch (f[0]) {
         case 'I':
-          // push prior
           if (curr) mats.push(curr);
   
           curr = {
-            family:        f[1],
-            itemCode:      f[2],
-            description:   f[3].replace(/~~FRA/g, ''), // strip language tag
-            baseUoM:       f[4] || f[6],               // X3 can repeat
-            salesUoM:      f[5] || f[7],
-            weightPerUoM:  parseFloat(f[8]) || 0,
-            purchaseUoM:   f[9],
+            family:             f[1],
+            itemCode:           f[2],
+            description:        (f[3] || '').replace(/~~FRA/g, ''),
+            baseUoM:            f[6] || '',
+            salesUoM:           f[7] || '',
+            weightPerUoM:       parseFloat(f[8]) || 0,
+            purchaseUoM:        f[9] || '',
             purchaseConversion: parseFloat(f[10]) || 1,
-            minStockLevel: parseFloat(f[14]) || 0,
-            category:      f[16],
-            status:        f[17],
-            parties:       [],
+            minStockLevel:      parseFloat(f[14]) || 0,
+            category:           f[16] || '',
+            status:             f[17] || '',
+            parties:            [],
           };
           break;
   
@@ -176,18 +175,17 @@ type ParsedData = {
         case 'P':
           if (curr) {
             curr.parties.push({
-              plant:         f[1],
-              location:      f[2],
-              stockStatus:   f[3],
+              plant:         f[1] || '',
+              location:      f[2] || '',
+              stockStatus:   f[3] || '',
               onHandQty:     parseFloat(f[4]) || 0,
-              uom:           f[5],
+              uom:           f[5] || '',
               uomConversion: parseFloat(f[6]) || 1,
             });
           }
           break;
   
         default:
-          // ignore others
           break;
       }
     }
@@ -195,6 +193,7 @@ type ParsedData = {
     if (curr) mats.push(curr);
     return mats;
   };
+  
 
 
   type Line = {

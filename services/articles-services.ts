@@ -110,6 +110,7 @@ export const listArticles = async (params: ArticlesParams) => {
     // ✅ Parse the actual data
     const resultJson = await parseSoapResponse(response);
     const articles = resultJson["GRP3"]["O_FILE"];
+    // console.log("Articles:", articles)
     const parsedArticles = parseSageX3MaterialData(articles);
     console.log("Articles parsed:", JSON.stringify(parsedArticles.slice(0, 1),null, 2))
     return parsedArticles;

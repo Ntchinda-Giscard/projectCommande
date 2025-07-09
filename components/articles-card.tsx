@@ -159,7 +159,7 @@ const ArticesCard = (props: ArticesCardProps) => {
                     ) : (
                         <View>
                             {/* Quantity in Cart Info */}
-                            <View className='bg-blue-50 rounded-lg p-3 mb-3'>
+                            {/* <View className='bg-blue-50 rounded-lg p-3 mb-3'>
                                 <View className='flex flex-row items-center justify-center'>
                                     <MaterialIcons name="shopping-cart" size={16} color="#3b82f6" />
                                     <Text className='text-blue-700 font-medium ml-2'>
@@ -169,7 +169,7 @@ const ArticesCard = (props: ArticesCardProps) => {
                                 <Text className='text-blue-600 text-sm text-center mt-1'>
                                     Total: {formatPrice(props.price * articleCount)} XAF
                                 </Text>
-                            </View>
+                            </View> */}
 
                             {/* Quantity Controls */}
                             <View className='flex flex-row items-center justify-between'>

@@ -1,12 +1,15 @@
-import { View, Text, ScrollView, TouchableOpacity, SafeAreaView, StatusBar, Alert, TextInput } from 'react-native'
-import React, { useState, useMemo, useEffect } from 'react'
-import { MaterialIcons } from '@expo/vector-icons'
+import { View, Text, ScrollView, TouchableOpacity, SafeAreaView, StatusBar, Alert, TextInput, ActivityIndicator, Modal } from 'react-native'
+import React, { useState, useMemo, useEffect, useCallback } from 'react'
 import { useRouter } from 'expo-router'
 import AppButton from '@/components/app-button'
 import { useCommandStore } from '@/lib/command-store'
 import { createCommande } from '@/services/create-commande'
 import { useUserStore } from '@/lib/user-store'
 import AddressDropdown from '@/components/address-dropdown'
+import { useArticleStore } from '@/lib/article-store'
+import { getTarif } from '@/services/tarif-service'
+import { MaterialIcons } from '@expo/vector-icons'
+
 
 type Line = {
   itemCode: string;
@@ -19,6 +22,14 @@ type BasketItemDisplay = Line & {
   category?: string;
   available?: number;
   description?: string;
+  unitPrice?: number; // Individual item price
+  mtnetPrice?: number; // Price from getTarif (.MTNET)
+  isLoadingPrice?: boolean;
+};
+
+type TarifResponse = {
+  MTNET?: number;
+  [key: string]: any;
 };
 
 const BasketScreen = () => {
@@ -28,44 +39,221 @@ const BasketScreen = () => {
   const [editingQuantity, setEditingQuantity] = useState<string | null>(null)
   const [tempQuantity, setTempQuantity] = useState<string>('')
   const [selectedAddressCode, setSelectedAddressCode] = useState('');
-
+  const { articles } = useArticleStore()
+  const [itemMtnetPrices, setItemMtnetPrices] = useState<Record<string, number>>({})
+  const [loadingPrices, setLoadingPrices] = useState<Record<string, boolean>>({})
+  const [showAddressPrompt, setShowAddressPrompt] = useState(false)
 
   // Extract basket items from commandParams.lines
   const basketLines: Line[] = commandParams.lines || []
 
-  // You might want to enrich the lines with additional product data
-  // This could come from a product lookup service or cache
-  const enrichedBasketItems: BasketItemDisplay[] = useMemo(() => {
-    return basketLines.map(line => ({
-      ...line,
-      name: `Article ${line.itemCode}`, // Replace with actual product lookup
-      category: 'General', // Replace with actual category lookup
-      description: `Description for ${line.itemCode}`, // Replace with actual description
-      price: line.price || 0
-    }))
-  }, [basketLines])
+  // Function to get article tariff with .MTNET value
+  const getArticleTarif = async (item: Line): Promise<number> => {
+    const article = articles.find(article => article.itemCode === item.itemCode)
 
-  // Calculate totals
+    if (!article) {
+      console.warn(`Article not found: ${item.itemCode}`)
+      return 0
+    }
+
+    if (!selectedAddressCode) {
+      console.warn(`No address selected for pricing calculation`)
+      return 0
+    }
+
+    if (!user?.header?.customerCode) {
+      console.warn(`No customer code available`)
+      return 0
+    }
+
+    try {
+      const tarif: TarifResponse = await getTarif({
+        username: 'admin',
+        password: 'Wazasolutions2025@',
+        client: user.header.customerCode,
+        article: item.itemCode,
+        qty: item.qty,
+        cur: commandParams.currency || 'EUR',
+        svte: commandParams.site || 'FR011',
+        sexp: selectedAddressCode,
+        uom: article.salesUoM
+      })
+      
+      // Return the MTNET value exclusively, handle both string and number types
+      const mtnetValue = tarif?.MTNET ? parseFloat(tarif.MTNET.toString()) : 0
+      // Ensure it's a valid number after parsing
+      const validMtnetValue = !isNaN(mtnetValue) ? mtnetValue : 0
+      console.log(`MTNET price for ${item.itemCode} (qty: ${item.qty}):`, validMtnetValue)
+      return validMtnetValue
+      
+    } catch (error) {
+      console.error('Error fetching tariff for', item.itemCode, error)
+      return 0
+    }
+  }
+
+  // Calculate prices for all items
+  const calculateAllPrices = useCallback(async () => {
+    if (!selectedAddressCode || !user?.header?.customerCode || basketLines.length === 0) {
+      return
+    }
+
+    console.log('Calculating prices for all items...')
+    
+    // Set loading state for all items
+    const loadingState: Record<string, boolean> = {}
+    basketLines.forEach(item => {
+      const key = `${item.itemCode}-${item.qty}`
+      loadingState[key] = true
+    })
+    setLoadingPrices(loadingState)
+
+    // Calculate prices for all items
+    const pricePromises = basketLines.map(async (item) => {
+      const key = `${item.itemCode}-${item.qty}`
+      
+      try {
+        const mtnetPrice = await getArticleTarif(item)
+        // Ensure the price is a valid number
+        const validPrice = typeof mtnetPrice === 'number' && !isNaN(mtnetPrice) ? mtnetPrice : 0
+        return { key, price: validPrice }
+      } catch (error) {
+        console.error('Error calculating price for', item.itemCode, error)
+        return { key, price: 0 }
+      }
+    })
+
+    const results = await Promise.all(pricePromises)
+    
+    // Update prices state
+    const newPrices: Record<string, number> = {}
+    const newLoadingState: Record<string, boolean> = {}
+    
+    results.forEach(({ key, price }) => {
+      // Ensure we only store valid numbers
+      newPrices[key] = typeof price === 'number' && !isNaN(price) ? price : 0
+      newLoadingState[key] = false
+    })
+
+    setItemMtnetPrices(newPrices)
+    setLoadingPrices(newLoadingState)
+    
+    console.log('Price calculation completed:', newPrices)
+  }, [selectedAddressCode, user?.header?.customerCode, basketLines, articles])
+
+  // Trigger price calculation when address changes
+  useEffect(() => {
+    if (selectedAddressCode && basketLines.length > 0) {
+      calculateAllPrices()
+    } else if (!selectedAddressCode && basketLines.length > 0) {
+      // Clear prices when no address is selected
+      setItemMtnetPrices({})
+      setShowAddressPrompt(true)
+    }
+  }, [selectedAddressCode, calculateAllPrices])
+
+  // Trigger price calculation when items change (debounced)
+  useEffect(() => {
+    if (selectedAddressCode && basketLines.length > 0) {
+      const timeoutId = setTimeout(() => {
+        calculateAllPrices()
+      }, 500) // Debounce to avoid too many API calls
+
+      return () => clearTimeout(timeoutId)
+    }
+  }, [basketLines, calculateAllPrices])
+
+  // Enhanced basket items with refined pricing
+  const enrichedBasketItems: BasketItemDisplay[] = useMemo(() => {
+    return basketLines.map(line => {
+      const key = `${line.itemCode}-${line.qty}`
+      const article = articles.find(a => a.itemCode === line.itemCode)
+      
+      return {
+        ...line,
+        name: article?.description || `Article ${line.itemCode}`,
+        category: article?.category || article?.family || 'General',
+        description: article?.description || `Description for ${line.itemCode}`,
+        unitPrice: article?.salesPrice || line.price || 0, // Individual item price
+        mtnetPrice: itemMtnetPrices[key], // Total price from .MTNET
+        isLoadingPrice: loadingPrices[key] || false
+      }
+    })
+  }, [basketLines, articles, itemMtnetPrices, loadingPrices])
+
+  // Calculate totals using exclusively .MTNET values - FIXED VERSION
   const basketTotals = useMemo(() => {
-    const totalItems = basketLines.reduce((sum, line) => sum + line.qty, 0)
-    const totalPrice = basketLines.reduce((sum, line) => sum + ((line.price || 0) * line.qty), 0)
+    const totalItems = basketLines.reduce((sum, line) => sum + (line.qty || 0), 0)
+    
+    // Sum all .MTNET values (total price for each card) - with proper null checking
+    const totalPrice = enrichedBasketItems.reduce((sum, item) => {
+      // Ensure we handle undefined/null mtnetPrice properly
+      const mtnetPrice = typeof item.mtnetPrice === 'number' && !isNaN(item.mtnetPrice) ? item.mtnetPrice : 0
+      return sum + mtnetPrice
+    }, 0)
+    
+    // Fallback total using catalog prices when MTNET prices aren't available
+    const catalogTotal = enrichedBasketItems.reduce((sum, item) => {
+      const catalogPrice = (typeof item.unitPrice === 'number' ? item.unitPrice : 0) * (item.qty || 0)
+      return sum + catalogPrice
+    }, 0)
+    
     const uniqueItems = basketLines.length
     
-    return { totalItems, totalPrice, uniqueItems }
-  }, [basketLines])
+    // Check if we have any calculated MTNET prices
+    const hasCalculatedPrices = enrichedBasketItems.some(item => 
+      typeof item.mtnetPrice === 'number' && !isNaN(item.mtnetPrice) && item.mtnetPrice > 0
+    )
+    
+    // Check if any prices are still loading
+    const hasLoadingPrices = Object.values(loadingPrices).some(loading => loading === true)
+    
+    console.log('Basket totals calculation:', {
+      totalItems,
+      totalPrice,
+      catalogTotal,
+      hasCalculatedPrices,
+      hasLoadingPrices,
+      enrichedBasketItems: enrichedBasketItems.map(item => ({
+        itemCode: item.itemCode,
+        mtnetPrice: item.mtnetPrice,
+        unitPrice: item.unitPrice,
+        qty: item.qty
+      }))
+    })
+    
+    return { 
+      totalItems, 
+      totalPrice: typeof totalPrice === 'number' && !isNaN(totalPrice) ? totalPrice : 0, 
+      catalogTotal: typeof catalogTotal === 'number' && !isNaN(catalogTotal) ? catalogTotal : 0,
+      uniqueItems,
+      hasCalculatedPrices,
+      hasLoadingPrices
+    }
+  }, [basketLines, enrichedBasketItems, loadingPrices])
 
   const formatPrice = (price: number) => {
+    // Ensure price is a valid number before formatting
+    const validPrice = typeof price === 'number' && !isNaN(price) ? price : 0
     return new Intl.NumberFormat('fr-FR', {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
-    }).format(price)
+    }).format(validPrice)
   }
 
   const formatCurrency = (price: number) => {
-    return `${formatPrice(price)} ${commandParams.currency}`
+    return `${formatPrice(price)} ${commandParams.currency || 'EUR'}`
   }
 
-  // Update item quantity
+  // Calculate unit price from MTNET total
+  const calculateUnitPriceFromMtnet = (mtnetTotal: number, quantity: number): number => {
+    if (typeof mtnetTotal !== 'number' || isNaN(mtnetTotal) || quantity <= 0) {
+      return 0
+    }
+    return mtnetTotal / quantity
+  }
+
+  // Update item quantity and recalculate prices
   const updateItemQuantity = (itemCode: string, newQuantity: number) => {
     if (newQuantity <= 0) {
       removeItem(itemCode)
@@ -82,28 +270,34 @@ const BasketScreen = () => {
       ...commandParams,
       lines: updatedLines
     })
+
+    // Prompt for address if not selected
+    if (!selectedAddressCode) {
+      setShowAddressPrompt(true)
+    }
   }
 
   const handleAddressChange = (addressCode: string) => {
     setSelectedAddressCode(addressCode);
     updateCommandField("shipSite", addressCode);
+    setShowAddressPrompt(false)
+    // Clear existing prices to trigger recalculation
+    setItemMtnetPrices({})
   };
 
-  // Add new item to basket (called from articles screen)
+  // Add new item to basket and trigger price calculation
   const addItemToBasket = (itemCode: string, price: number, quantity: number = 1) => {
     const existingLineIndex = basketLines.findIndex(line => line.itemCode === itemCode)
     
     let updatedLines: Line[]
     
     if (existingLineIndex >= 0) {
-      // Update existing line
       updatedLines = basketLines.map((line, index) =>
         index === existingLineIndex
           ? { ...line, qty: line.qty + quantity }
           : line
       )
     } else {
-      // Add new line
       updatedLines = [...basketLines, { itemCode, qty: quantity, price }]
     }
 
@@ -111,6 +305,11 @@ const BasketScreen = () => {
       ...commandParams,
       lines: updatedLines
     })
+
+    // Prompt for address if not selected
+    if (!selectedAddressCode) {
+      setShowAddressPrompt(true)
+    }
   }
 
   // Remove single item
@@ -129,6 +328,15 @@ const BasketScreen = () => {
               ...commandParams,
               lines: updatedLines
             })
+            
+            // Clear price for removed item
+            const newPrices = { ...itemMtnetPrices }
+            Object.keys(newPrices).forEach(key => {
+              if (key.startsWith(itemCode)) {
+                delete newPrices[key]
+              }
+            })
+            setItemMtnetPrices(newPrices)
           }
         }
       ]
@@ -150,6 +358,9 @@ const BasketScreen = () => {
               ...commandParams,
               lines: []
             })
+            setItemMtnetPrices({})
+            setLoadingPrices({})
+            setShowAddressPrompt(false)
           }
         }
       ]
@@ -158,29 +369,34 @@ const BasketScreen = () => {
 
   // Navigate to articles to add more items
   const addMoreItems = () => {
-    router.push('/articles') // Adjust route as needed
+    router.push('/articles')
   }
 
-  // Validate basket (process order)
+  // Validate basket with refined pricing logic
   const validateBasket = () => {
     if (basketLines.length === 0) {
       Alert.alert("Commande vide", "Ajoutez des articles avant de valider votre commande.")
       return
     }
 
-    // Validate that all lines have prices
-    const linesWithoutPrice = basketLines.filter(line => !line.price || line.price <= 0)
-    if (linesWithoutPrice.length > 0) {
-      Alert.alert(
-        "Prix manquants", 
-        `Certains articles n'ont pas de prix défini: ${linesWithoutPrice.map(l => l.itemCode).join(', ')}`
-      )
+    if (!selectedAddressCode) {
+      Alert.alert("Adresse manquante", "Veuillez sélectionner une adresse de livraison pour calculer les prix.")
       return
     }
 
+    // Check if prices are still loading
+    const hasLoadingPrices = Object.values(loadingPrices).some(loading => loading)
+    if (hasLoadingPrices) {
+      Alert.alert("Calcul en cours", "Veuillez attendre que tous les prix soient calculés.")
+      return
+    }
+
+    // Use the appropriate total (MTNET if available, otherwise catalog)
+    const finalTotal = basketTotals.hasCalculatedPrices ? basketTotals.totalPrice : basketTotals.catalogTotal
+
     Alert.alert(
       "Valider la commande",
-      `Confirmer la commande de ${basketTotals.totalItems} articles pour un total de ${formatCurrency(basketTotals.totalPrice)} ?\n\nSite: ${commandParams.site}\nClient: ${commandParams.customer}\nDate: ${formatDate(commandParams.date)}`,
+      `Confirmer la commande de ${basketTotals.totalItems} articles pour un total de ${formatCurrency(finalTotal)} ?\n\nSite: ${commandParams.site}\nClient: ${commandParams.customer}\nDate: ${formatDate(commandParams.date)}`,
       [
         { text: "Annuler", style: "cancel" },
         {
@@ -195,64 +411,63 @@ const BasketScreen = () => {
 
   // Format date for display
   const formatDate = (dateString: string) => {
-    if (dateString.length === 8) {
+    if (dateString && dateString.length === 8) {
       const year = dateString.substring(0, 4)
       const month = dateString.substring(4, 6)
       const day = dateString.substring(6, 8)
       return `${day}/${month}/${year}`
     }
-    return dateString
+    return dateString || ''
   }
 
-  // Process order function
+  // Process order with calculated .MTNET prices
   const processOrder = async () => {
-    if (!selectedAddressCode) {
-      Alert.alert("Erreur", "Veuillez sélectionner une adresse.")
-      return
-    }
-    
     try {
-      console.log("selectedAddressCode", selectedAddressCode)
-      
-      // Update the shipSite field first
-      updateCommandField("shipSite", selectedAddressCode);
-      
-      // Create updated command params for the API call
+      // Update lines with calculated unit prices from .MTNET
+      const updatedLines = basketLines.map(line => {
+        const key = `${line.itemCode}-${line.qty}`
+        const mtnetTotal = itemMtnetPrices[key] || 0
+        const unitPrice = calculateUnitPriceFromMtnet(mtnetTotal, line.qty)
+        
+        return {
+          ...line,
+          price: unitPrice > 0 ? unitPrice : (line.price || 0)
+        }
+      })
+
       const updatedCommandParams = {
         ...commandParams,
-        shipSite: selectedAddressCode
-      };
-  
-      console.log("Processing order:", {
-        commandParams: commandParams,
-        totals: basketTotals,
-        timestamp: new Date().toISOString()
-      })
+        shipSite: selectedAddressCode,
+        lines: updatedLines
+      }
+
+      console.log("Processing order with .MTNET calculated prices:", updatedCommandParams)
       
-      // Use the updated params for the API call
       const result = await createCommande({
         username: "admin",
         password: "Wazasolutions2025@",
         moduleToImport: "YSOH",
-        command: commandParams  // Use updated params here
+        command: updatedCommandParams
       })
-  
-      console.log("result", result)
+
+      console.log("Order result:", result)
+      
+      const finalTotal = basketTotals.hasCalculatedPrices ? basketTotals.totalPrice : basketTotals.catalogTotal
       
       Alert.alert(
         "Succès", 
-        `Commande validée avec succès !\n\nRéférence: ${commandParams.orderType}-${commandParams.date}\nTotal: ${formatCurrency(basketTotals.totalPrice)}`,
+        `Commande validée avec succès !\n\nRéférence: ${commandParams.orderType}-${commandParams.date}\nTotal: ${formatCurrency(finalTotal)}`,
         [
           {
             text: "OK",
             onPress: () => {
-              // Clear basket after successful order
               setCommandParams({
                 ...commandParams,
                 lines: []
               })
-              // Navigate to orders list
-              // router.push('/orders')
+              setItemMtnetPrices({})
+              setLoadingPrices({})
+              setShowAddressPrompt(false)
             }
           }
         ]
@@ -282,15 +497,33 @@ const BasketScreen = () => {
     setTempQuantity('')
   }
 
-  useEffect(() => {
-    // console.log("user", user)
-  }, [user])
+  // Address prompt component
+  const AddressPrompt = () => {
+    if (!showAddressPrompt || selectedAddressCode) return null
+
+    return (
+      <View className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mx-6 mt-4">
+        <View className="flex-row items-center mb-2">
+          <MaterialIcons name="warning" size={20} color="#f59e0b" />
+          <Text className="text-yellow-800 font-medium ml-2">Adresse requise</Text>
+        </View>
+        <Text className="text-yellow-700 text-sm mb-3">
+          Veuillez sélectionner une adresse de livraison pour calculer les prix exacts.
+        </Text>
+        <TouchableOpacity
+          onPress={() => setShowAddressPrompt(false)}
+          className="self-end"
+        >
+          <Text className="text-yellow-600 text-sm font-medium">Compris</Text>
+        </TouchableOpacity>
+      </View>
+    )
+  }
 
   if (basketLines.length === 0) {
     return (
       <SafeAreaView className="flex-1 bg-gray-50">
         <StatusBar barStyle="dark-content" backgroundColor="#f9fafb" />
-        
         
         {/* Header */}
         <View className="px-6 py-4 bg-white border-b border-gray-200">
@@ -299,8 +532,6 @@ const BasketScreen = () => {
             {commandParams.orderType} • Site: {commandParams.site} • Client: {commandParams.customer}
           </Text>
         </View>
-
-        
 
         {/* Empty State */}
         <View className="flex-1 justify-center items-center px-6">
@@ -324,9 +555,19 @@ const BasketScreen = () => {
     )
   }
 
+  // Determine which total to display
+  const displayTotal = basketTotals.hasCalculatedPrices ? basketTotals.totalPrice : basketTotals.catalogTotal
+  const totalLabel = basketTotals.hasCalculatedPrices ? "Total (prix calculés)" : "Total (prix catalogue)"
+
   return (
     <SafeAreaView className="flex-1 bg-gray-50">
       <StatusBar barStyle="dark-content" backgroundColor="#f9fafb" />
+
+      {/* <Modal>
+        <View>
+          
+        </View>
+      </Modal> */}
       
       {/* Header */}
       <View className="px-6 py-4 bg-white border-b border-gray-200">
@@ -352,34 +593,50 @@ const BasketScreen = () => {
         </View>
       </View>
 
-      {/* Command Summary */}
+      {/* Address Selection */}
+      <View className="px-6 py-4 bg-white border-b border-gray-200">
+        <AddressDropdown
+          addresses={user?.addresses || []}
+          value={selectedAddressCode}
+          onChange={handleAddressChange}
+          placeholder="Choisissez une adresse de livraison..."
+          label="Adresse de livraison"
+        />
+      </View>
+
+      {/* Address Prompt */}
+      <AddressPrompt />
+
+      {/* Command Summary - Shows sum of all .MTNET totals */}
       <View className="bg-white mx-6 mt-4 rounded-xl p-4 border border-gray-200">
         <Text className="text-lg font-semibold text-gray-900 mb-3">Résumé de la commande</Text>
         
-        {/* Command Details */}
-        <View className="bg-gray-50 rounded-lg p-3 mb-4">
-          <View className="flex-row justify-between mb-1">
-            <Text className="text-gray-600 text-sm">Type de commande</Text>
-            <Text className="text-gray-900 font-medium">{commandParams.orderType}</Text>
-          </View>
-          <View className="flex-row justify-between mb-1">
-            <Text className="text-gray-600 text-sm">Site d'expédition</Text>
-            <Text className="text-gray-900 font-medium">{commandParams.shipSite}</Text>
-          </View>
-          <View className="flex-row justify-between">
-            <Text className="text-gray-600 text-sm">Devise</Text>
-            <Text className="text-gray-900 font-medium">{commandParams.currency}</Text>
-          </View>
-        </View>
-
         <View className="flex-row justify-between items-center mb-2">
           <Text className="text-gray-600">Articles ({basketTotals.uniqueItems})</Text>
           <Text className="text-gray-900 font-medium">{basketTotals.totalItems} unités</Text>
         </View>
-        <View className="flex-row justify-between items-center mb-4">
-          <Text className="text-lg font-semibold text-gray-900">Total</Text>
-          <Text className="text-xl font-bold text-gray-900">{formatCurrency(basketTotals.totalPrice)}</Text>
-        </View>
+        
+        {basketTotals.hasLoadingPrices ? (
+          <View className="flex-row justify-between items-center mb-4">
+            <Text className="text-lg font-semibold text-gray-900">Total</Text>
+            <View className="flex-row items-center">
+              <ActivityIndicator size="small" color="#3b82f6" />
+              <Text className="text-lg text-blue-600 ml-2">Calcul en cours...</Text>
+            </View>
+          </View>
+        ) : selectedAddressCode ? (
+          <View className="flex-row justify-between items-center mb-4">
+            <Text className="text-lg font-semibold text-gray-900">{totalLabel}</Text>
+            <Text className={`text-xl font-bold ${basketTotals.hasCalculatedPrices ? 'text-green-600' : 'text-blue-600'}`}>
+              {formatCurrency(displayTotal)}
+            </Text>
+          </View>
+        ) : (
+          <View className="flex-row justify-between items-center mb-4">
+            <Text className="text-lg font-semibold text-gray-900">Total</Text>
+            <Text className="text-lg text-gray-500">Sélectionnez une adresse</Text>
+          </View>
+        )}
         
         {/* Action Buttons */}
         <View className="flex-row space-x-3">
@@ -393,21 +650,28 @@ const BasketScreen = () => {
           
           <TouchableOpacity
             onPress={validateBasket}
-            className="flex-1 bg-blue-500 py-3 rounded-lg flex-row items-center justify-center"
+            className={`flex-1 py-3 rounded-lg flex-row items-center justify-center ${
+              selectedAddressCode && displayTotal > 0 && !basketTotals.hasLoadingPrices
+                ? 'bg-blue-500' 
+                : 'bg-gray-300'
+            }`}
+            disabled={!selectedAddressCode || displayTotal === 0 || basketTotals.hasLoadingPrices}
           >
-            <MaterialIcons name="check" size={20} color="white" />
-            <Text className="text-white font-semibold ml-2">Valider</Text>
+            <MaterialIcons 
+              name="check" 
+              size={20} 
+              color={selectedAddressCode && displayTotal > 0 && !basketTotals.hasLoadingPrices ? "white" : "#9ca3af"} 
+            />
+            <Text className={`font-semibold ml-2 ${
+              selectedAddressCode && displayTotal > 0 && !basketTotals.hasLoadingPrices
+                ? 'text-white' 
+                : 'text-gray-500'
+            }`}>
+              Valider
+            </Text>
           </TouchableOpacity>
         </View>
       </View>
-      <View>
-      <AddressDropdown
-        addresses={user?.addresses || []}
-        value={selectedAddressCode}
-        onChange={handleAddressChange}  // Use the new handler
-        placeholder="Choisissez une adresse..."
-      />
-    </View>
 
       {/* Basket Items */}
       <ScrollView className="flex-1 px-6" showsVerticalScrollIndicator={false}>
@@ -441,14 +705,19 @@ const BasketScreen = () => {
 
               {/* Price and Quantity Controls */}
               <View className="flex-row items-center justify-between">
-                {/* Price Section */}
+                {/* Prix unitaire - Individual item price */}
                 <View>
                   <Text className="text-xs text-gray-500 uppercase tracking-wide mb-1">
-                    Prix unitaire
+                    Prix unitaire (catalogue)
                   </Text>
                   <Text className="text-lg font-bold text-gray-900">
-                    {item.price ? formatCurrency(item.price) : 'Prix non défini'}
+                    {formatCurrency(item.unitPrice || 0)}
                   </Text>
+                  {item.mtnetPrice !== undefined && selectedAddressCode && (
+                    <Text className="text-xs text-blue-600 mt-1">
+                      Prix calculé: {formatCurrency(calculateUnitPriceFromMtnet(item.mtnetPrice, item.qty))}
+                    </Text>
+                  )}
                 </View>
 
                 {/* Quantity Controls */}
@@ -501,16 +770,36 @@ const BasketScreen = () => {
                 </View>
               </View>
 
-              {/* Item Total */}
+              {/* Item Total - Exclusively from .MTNET */}
               <View className="mt-3 pt-3 border-t border-gray-100">
                 <View className="flex-row justify-between items-center">
                   <Text className="text-sm text-gray-600">
-                    {item.qty} × {item.price ? formatCurrency(item.price) : 'N/A'}
+                    Total pour cette ligne
                   </Text>
-                  <Text className="text-lg font-bold text-blue-600">
-                    {item.price ? formatCurrency(item.price * item.qty) : 'Prix à définir'}
-                  </Text>
+                  {item.isLoadingPrice ? (
+                    <View className="flex-row items-center">
+                      <ActivityIndicator size="small" color="#3b82f6" />
+                      <Text className="text-sm text-gray-500 ml-2">Calcul...</Text>
+                    </View>
+                  ) : (
+                    <Text className="text-lg font-bold text-blue-600">
+                      {typeof item.mtnetPrice === 'number' && !isNaN(item.mtnetPrice)
+                        ? formatCurrency(item.mtnetPrice)
+                        : (selectedAddressCode ? formatCurrency((item.unitPrice || 0) * item.qty) : 'Adresse requise')
+                      }
+                    </Text>
+                  )}
                 </View>
+                {typeof item.mtnetPrice === 'number' && !isNaN(item.mtnetPrice) && selectedAddressCode && (
+                  <Text className="text-xs text-green-600 mt-1">
+                    ✓ Prix calculé avec tarification client (.MTNET)
+                  </Text>
+                )}
+                {!selectedAddressCode && (
+                  <Text className="text-xs text-orange-600 mt-1">
+                    ⚠ Sélectionnez une adresse pour calculer le prix
+                  </Text>
+                )}
               </View>
             </View>
           ))}
@@ -518,7 +807,7 @@ const BasketScreen = () => {
       </ScrollView>
 
       {/* Bottom Actions */}
-      <View className="bg-white border-t border-gray-200 px-6 py-4">
+      {/* <View className="bg-white border-t border-gray-200 px-6 py-4">
         <View className="flex-row space-x-3">
           <TouchableOpacity
             onPress={clearBasket}
@@ -530,16 +819,29 @@ const BasketScreen = () => {
           
           <TouchableOpacity
             onPress={validateBasket}
-            className="flex-2 bg-blue-500 py-4 rounded-lg flex-row items-center justify-center"
+            className={`flex-2 py-4 rounded-lg flex-row items-center justify-center ${
+              selectedAddressCode && displayTotal > 0 && !basketTotals.hasLoadingPrices
+                ? 'bg-blue-500' 
+                : 'bg-gray-300'
+            }`}
             style={{ flex: 2 }}
+            disabled={!selectedAddressCode || displayTotal === 0 || basketTotals.hasLoadingPrices}
           >
-            <MaterialIcons name="shopping-cart-checkout" size={20} color="white" />
-            <Text className="text-white font-semibold ml-2 text-lg">
-              Valider • {formatCurrency(basketTotals.totalPrice)}
+            <MaterialIcons 
+              name="shopping-cart-checkout" 
+              size={20} 
+              color={selectedAddressCode && displayTotal > 0 && !basketTotals.hasLoadingPrices ? "white" : "#9ca3af"} 
+            />
+            <Text className={`font-semibold ml-2 text-lg ${
+              selectedAddressCode && displayTotal > 0 && !basketTotals.hasLoadingPrices
+                ? 'text-white' 
+                : 'text-gray-500'
+            }`}>
+              Valider • {selectedAddressCode && !basketTotals.hasLoadingPrices ? formatCurrency(displayTotal) : 'Adresse requise'}
             </Text>
           </TouchableOpacity>
         </View>
-      </View>
+      </View> */}
     </SafeAreaView>
   )
 }

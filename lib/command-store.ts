@@ -42,6 +42,7 @@ export const useCommandStore = create<CommandState>()((set) => ({
     lines: [],
   },
   setCommandParams: (params) => set({ commandParams: params }),
+
   updateCommandField: (key, value) =>
     set((state) => ({
       commandParams: {
