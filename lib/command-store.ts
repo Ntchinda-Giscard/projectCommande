@@ -13,6 +13,7 @@ type Line = {
   qty: number;
   price?: number;
   designation?: string
+  salesUoM?: string
 };
 
 type CommandParams = {

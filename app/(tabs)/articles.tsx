@@ -1,5 +1,5 @@
 import { View, Text, ScrollView, FlatList, ActivityIndicator, RefreshControl, TextInput, TouchableOpacity } from 'react-native'
-import React, { useEffect, useState, useMemo } from 'react'
+import React, { useEffect, useState, useMemo, useCallback } from 'react'
 import AppButton from '@/components/app-button'
 import { MaterialIcons } from '@expo/vector-icons'
 import ArticesCard from '@/components/articles-card'
@@ -35,12 +35,13 @@ type Material = {
   parties: PartyInfo[];
 };
 
-// Updated CartItem type to include designation
+// Updated CartItem type to include salesUoM
 type CartItem = {
   itemCode: string;
   quantity: number;
   price: number;
-  designation: string; // Added designation field
+  designation: string;
+  salesUoM: string; // Added salesUoM field
 };
 
 type ArticleCardProps = {
@@ -70,6 +71,15 @@ const Articles = () => {
   
   const setStoreArticles = useArticleStore((state) => state.setArticles)
 
+  // Add debug flag to control logging
+  const DEBUG_LOGGING = __DEV__ && false // Set to true only when debugging
+
+  const debugLog = useCallback((message: string, data?: any) => {
+    if (DEBUG_LOGGING) {
+      console.log(`[Articles Debug] ${message}`, data || '')
+    }
+  }, [DEBUG_LOGGING])
+
   const loadArticles = async (isRefresh = false) => {
     try {
       if (isRefresh) setRefreshing(true)
@@ -86,7 +96,7 @@ const Articles = () => {
       setArticles(fetchedArticles || [])
       setStoreArticles(fetchedArticles || [])
       
-      console.log("Articles loaded:", fetchedArticles?.length || 0)
+      debugLog("Articles loaded:", fetchedArticles?.length || 0)
     } catch (err) {
       console.error("Error loading articles:", err)
       setError("Failed to load articles. Please try again.")
@@ -106,7 +116,7 @@ const Articles = () => {
   }
 
   // Convert Material to ArticleCardProps format
-  const convertMaterialToArticleCard = (material: Material): ArticleCardProps => {
+  const convertMaterialToArticleCard = useCallback((material: Material): ArticleCardProps => {
     const totalStock = material.parties.reduce((sum, party) => sum + party.onHandQty, 0)
     const defaultPrice = material.salesPrice || 0
     
@@ -117,16 +127,16 @@ const Articles = () => {
       image: "/placeholder.svg?height=200&width=200",
       available: totalStock,
       category: material.category || material.family,
-      onAddArticle: (price: number, amount: number) => handleAddToCart(material.itemCode, price, amount, material.description),
+      onAddArticle: (price: number, amount: number) => handleAddToCart(material.itemCode, price, amount, material.description, material.salesUoM),
       onRemoveArticle: (price: number, amount: number) => handleRemoveFromCart(material.itemCode, price, amount)
     }
-  }
+  }, [])
 
-  // Updated handleAddToCart to include designation parameter
-  const handleAddToCart = async (itemCode: string, price: number, amount: number, designation?: string) => {
-    // Find the article to get its description if not provided
+  // Updated handleAddToCart to include salesUoM parameter
+  const handleAddToCart = useCallback(async (itemCode: string, price: number, amount: number, designation?: string, salesUoM?: string) => {
     const article = articles.find(item => item.itemCode === itemCode)
     const articleDesignation = designation || article?.description || `Article ${itemCode}`
+    const articleSalesUoM = salesUoM || article?.salesUoM || 'UN' // Default to 'UN' if not found
     
     setCart(prevCart => {
       const existingItem = prevCart.find(item => item.itemCode === itemCode)
@@ -137,28 +147,25 @@ const Articles = () => {
             : item
         )
       } else {
-        return [...prevCart, { 
+        const newItem = { 
           itemCode, 
           quantity: amount, 
           price,
-          designation: articleDesignation // Include designation from article description
-        }]
+          designation: articleDesignation,
+          salesUoM: articleSalesUoM // Include salesUoM from article
+        }
+        debugLog("Item added to cart:", newItem)
+        return [...prevCart, newItem]
       }
     })
+  }, [articles, debugLog])
 
-    console.log("Item added to cart:", {
-      itemCode,
-      quantity: amount,
-      price,
-      designation: articleDesignation
-    })
-  }
-
-  const handleRemoveFromCart = (itemCode: string, price: number, amount: number) => {
+  const handleRemoveFromCart = useCallback((itemCode: string, price: number, amount: number) => {
     setCart(prevCart => {
       const existingItem = prevCart.find(item => item.itemCode === itemCode)
       if (existingItem) {
         if (existingItem.quantity <= amount) {
+          debugLog("Item removed from cart:", itemCode)
           return prevCart.filter(item => item.itemCode !== itemCode)
         } else {
           return prevCart.map(item =>
@@ -170,12 +177,10 @@ const Articles = () => {
       }
       return prevCart
     })
-
-    console.log("Cart updated after removal:", cart)
-  }
+  }, [debugLog])
 
   // Enhanced search function - case insensitive and includes multiple fields
-  const searchArticles = (article: Material, query: string): boolean => {
+  const searchArticles = useCallback((article: Material, query: string): boolean => {
     if (!query.trim()) return true
     
     const searchTerm = query.toLowerCase().trim()
@@ -186,6 +191,9 @@ const Articles = () => {
     // Search in baseUoM
     const baseUoMMatch = article.baseUoM?.toLowerCase().includes(searchTerm) || false
     
+    // Search in salesUoM
+    const salesUoMMatch = article.salesUoM?.toLowerCase().includes(searchTerm) || false
+    
     // Search in itemCode
     const itemCodeMatch = article.itemCode?.toLowerCase().includes(searchTerm) || false
     
@@ -194,8 +202,8 @@ const Articles = () => {
     const familyMatch = article.family?.toLowerCase().includes(searchTerm) || false
     
     // Return true if any field matches
-    return descriptionMatch || baseUoMMatch || itemCodeMatch || categoryMatch || familyMatch
-  }
+    return descriptionMatch || baseUoMMatch || salesUoMMatch || itemCodeMatch || categoryMatch || familyMatch
+  }, [])
 
   // Get unique categories with counts
   const categories = useMemo(() => {
@@ -255,26 +263,40 @@ const Articles = () => {
       
       return matchesSearch && matchesCategory && matchesAvailability
     })
-  }, [articles, searchQuery, selectedCategory, availabilityFilter])
+  }, [articles, searchQuery, selectedCategory, availabilityFilter, searchArticles])
 
-  // Updated cart totals calculation to include designation in command params
+  // Separated cart totals calculation from command params update
   const cartTotals = useMemo(() => {
     const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0)
     const totalPrice = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0)
     
-    // Update command params with designation included
-    setCommandParams({
-      ...commandParams,
-      lines: cart.map(item => ({
-        itemCode: item.itemCode,
-        qty: item.quantity,
-        price: item.price,
-        designation: item.designation // Include designation in command lines
-      }))
-    })
+    debugLog("Cart totals calculated:", { totalItems, totalPrice, cartLength: cart.length })
     
     return { totalItems, totalPrice }
-  }, [cart, commandParams, setCommandParams])
+  }, [cart, debugLog])
+
+  // Separate useEffect to update command params when cart changes - now includes salesUoM
+  useEffect(() => {
+    const commandLines = cart.map(item => ({
+      itemCode: item.itemCode,
+      qty: item.quantity,
+      price: item.price,
+      designation: item.designation,
+      salesUoM: item.salesUoM // Include salesUoM in command lines
+    }))
+
+    // Only update if the lines have actually changed
+    const currentLines = commandParams.lines || []
+    const hasChanged = JSON.stringify(currentLines) !== JSON.stringify(commandLines)
+    
+    if (hasChanged) {
+      debugLog("Updating command params with cart changes including salesUoM")
+      setCommandParams({
+        ...commandParams,
+        lines: commandLines
+      })
+    }
+  }, [cart])
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('fr-FR', {
@@ -302,11 +324,11 @@ const Articles = () => {
   }
 
   // Clear all filters
-  const clearAllFilters = () => {
+  const clearAllFilters = useCallback(() => {
     setSearchQuery('')
     setSelectedCategory('all')
     setAvailabilityFilter('all')
-  }
+  }, [])
 
   // Check if any filters are active
   const hasActiveFilters = searchQuery.trim() !== '' || selectedCategory !== 'all' || availabilityFilter !== 'all'
@@ -365,7 +387,7 @@ const Articles = () => {
           <MaterialIcons name="search" size={20} color="#6b7280" />
           <TextInput
             className="flex-1 ml-2 text-gray-900"
-            placeholder="Rechercher par nom, code, catégorie ou UoM..."
+            placeholder="Rechercher par nom, code, catégorie, UoM ou salesUoM..."
             value={searchQuery}
             onChangeText={setSearchQuery}
             placeholderTextColor="#6b7280"
@@ -379,7 +401,7 @@ const Articles = () => {
         {searchQuery.trim() !== '' && (
           <View className="mt-2">
             <Text className="text-xs text-gray-500">
-              Recherche dans: nom, code article, catégorie, famille et unité de mesure
+              Recherche dans: nom, code article, catégorie, famille, unité de mesure et unité de vente
             </Text>
           </View>
         )}

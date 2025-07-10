@@ -55,6 +55,8 @@ type Line = {
     itemCode: string;
     qty: number;
     price?: number;
+    designation: string;
+    salesUoM?: string
   };
   
   type CommandParams = {
@@ -83,6 +85,7 @@ export const createCommande = async (params: CreateCommandeParams) => {
   // React Native: use Buffer instead of btoa
   const encodedCredentials = Buffer.from(credentials).toString('base64');
   const authHeader = `Basic ${encodedCredentials}`;
+  console.log("items", params.command)
   const iFile = buildIFile(params.command);
 
   console.log("iFile", iFile);

@@ -200,6 +200,8 @@ type ParsedData = {
     itemCode: string;
     qty: number;
     price?: number;
+    designation: string;
+    salesUoM?: string
   };
   
   type CommandParams = {
@@ -216,49 +218,44 @@ type ParsedData = {
    * Build the I_FILE string: one E‑record, many L‑records, and END
    */
   export const buildIFile = ({
+  site,
+  orderType,
+  customer,
+  date,
+  shipSite,
+  currency,
+  lines,
+}: CommandParams): string => {
+  const headerFields = [
+    "E",
     site,
     orderType,
+    "",           // numéro de commande auto
     customer,
     date,
+    "",           // référence
     shipSite,
     currency,
-    lines,
-  }: CommandParams): string => {
-    // Header: E;site;orderType;;customer;date;;shipSite;currency;;;;;
-    const headerFields = [
-      "E",
-      site,
-      orderType,
-      "",           // leave order number blank → X3 will generate
-      customer,
-      date,
-      "",           // reference
-      shipSite,
-      currency,
-      "", "", "", "", "", // pad out unused header slots
+    "", "", "", "", "", // padding
+  ];
+  const header = headerFields.join(";");
+
+  const lineRecs = lines.map(({ itemCode, qty, price = 0, designation, salesUoM }) => {
+    const fields = [
+      "L",
+      itemCode,
+      designation || "",        // désignation personnalisée
+      salesUoM || "UN",         // unité de vente dynamique, fallback sur "UN"
+      qty.toString(),
+      price.toString(),
+      "0", "0", "0", "",        // remises / taxes
     ];
-    const header = headerFields.join(";");
-  
-    // Lines: L;itemCode;;UN;qty;price;0;0;0;;  (you can extend discount/tax as needed)
-    const lineRecs = lines.map(({ itemCode, qty, price = 0 }) => {
-      const fields = [
-        "L",
-        itemCode,
-        "",        // use default description
-        "UN",      // sales UoM
-        qty.toString(),
-        price.toString(),
-        "0", "0", "0", "",  // discount, tax etc
-      ];
-      return fields.join(";");
-    });
-  
-    // End marker
-    const end = "END";
-  
-    // Put it all together with | separators
-    return [header, ...lineRecs, end].join("|");
-  };
+    return fields.join(";");
+  });
+
+  return [header, ...lineRecs, "END"].join("|");
+};
+
 
   type Header = {
     country: string;
