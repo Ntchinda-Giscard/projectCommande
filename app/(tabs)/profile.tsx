@@ -9,19 +9,22 @@ import {
 } from 'react-native';
 import { useAuth } from '@/context/AuthContext';
 import { MaterialIcons } from '@expo/vector-icons';
+import { useUserStore } from "@/lib/user-store"
+
 
 export default function Profile() {
   const { onLogout, authState } = useAuth();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const user  = useUserStore((state) => state.user)
 
   // Mock user data - in a real app, this would come from your API or auth context
   const userData = {
-    name: 'John Doe',
-    email: 'john.doe@example.com',
+    name: `${user?.contact?.firstName} ${user?.contact?.lastName}`,
+    email: `${user?.contact?.firstName?.toLocaleLowerCase()}.${user?.contact?.lastName?.toLocaleLowerCase()}@example.com`,
     avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face',
     joinDate: 'Joined March 2024',
-    phone: '+1 (555) 123-4567',
-    location: 'San Francisco, CA'
+    phone: user?.contact?.phone,
+    location: user?.addresses[0]?.city
   };
 
   const handleLogout = () => {
