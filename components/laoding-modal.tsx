@@ -15,8 +15,8 @@ const LoadingModal = ({ visible, message = 'Loading...' }: LoadingModalProps) =>
     >
       <View style={styles.overlay}>
         <View style={styles.container}>
-          <ActivityIndicator size="large" color="#007bff" />
-          <Text style={styles.text}>{message}</Text>
+          <ActivityIndicator size="large" color="gray" />
+          <Text className='text-lg font-semibold text-white' >{message}</Text>
         </View>
       </View>
     </Modal>
@@ -33,7 +33,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   container: {
-    backgroundColor: 'white',
+    backgroundColor: 'rgba(0, 0, 0, 0.86)',
     padding: 24,
     borderRadius: 10,
     alignItems: 'center',

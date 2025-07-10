@@ -9,6 +9,7 @@ import AddressDropdown from '@/components/address-dropdown'
 import { useArticleStore } from '@/lib/article-store'
 import { getTarif } from '@/services/tarif-service'
 import { MaterialIcons } from '@expo/vector-icons'
+import LoadingModal from '@/components/laoding-modal'
 
 
 type Line = {
@@ -28,8 +29,17 @@ type BasketItemDisplay = Line & {
 };
 
 type TarifResponse = {
-  MTNET?: number;
-  [key: string]: any;
+  MTNET: string;
+  CLIENT: string;
+    ARTICLE: string;
+    QTY: string;
+    SVTE: string;
+    SEXP: string;
+    UOM: string;
+    CUR: string;
+    GROPRI: string;
+    PRINET: string;
+  // [key: string]: any;
 };
 
 const BasketScreen = () => {
@@ -43,6 +53,8 @@ const BasketScreen = () => {
   const [itemMtnetPrices, setItemMtnetPrices] = useState<Record<string, number>>({})
   const [loadingPrices, setLoadingPrices] = useState<Record<string, boolean>>({})
   const [showAddressPrompt, setShowAddressPrompt] = useState(false)
+  const [loading, setLoading] = useState(false);
+
 
   // Extract basket items from commandParams.lines
   const basketLines: Line[] = commandParams.lines || []
@@ -67,6 +79,7 @@ const BasketScreen = () => {
     }
 
     try {
+      setLoading(true)
       const tarif: TarifResponse = await getTarif({
         username: 'admin',
         password: 'Wazasolutions2025@',
@@ -84,10 +97,12 @@ const BasketScreen = () => {
       // Ensure it's a valid number after parsing
       const validMtnetValue = !isNaN(mtnetValue) ? mtnetValue : 0
       console.log(`MTNET price for ${item.itemCode} (qty: ${item.qty}):`, validMtnetValue)
+      setLoading(false)
       return validMtnetValue
       
     } catch (error) {
       console.error('Error fetching tariff for', item.itemCode, error)
+      setLoading(false)
       return 0
     }
   }
@@ -369,7 +384,7 @@ const BasketScreen = () => {
 
   // Navigate to articles to add more items
   const addMoreItems = () => {
-    router.push('/articles')
+    router.back()
   }
 
   // Validate basket with refined pricing logic
@@ -503,6 +518,7 @@ const BasketScreen = () => {
 
     return (
       <View className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mx-6 mt-4">
+        {loading && <LoadingModal visible={true} message="Please wait..." />}
         <View className="flex-row items-center mb-2">
           <MaterialIcons name="warning" size={20} color="#f59e0b" />
           <Text className="text-yellow-800 font-medium ml-2">Adresse requise</Text>
@@ -545,7 +561,7 @@ const BasketScreen = () => {
           
           <AppButton
             label="Parcourir les articles"
-            onPress={addMoreItems}
+            onPress={() => router.push('/articles')}
             className="bg-blue-500 px-8 py-4 rounded-lg flex-row items-center"
             textClasses="text-white font-semibold text-lg"
             icon={<MaterialIcons name="add-shopping-cart" color="white" size={24} />}
@@ -792,7 +808,7 @@ const BasketScreen = () => {
                 </View>
                 {typeof item.mtnetPrice === 'number' && !isNaN(item.mtnetPrice) && selectedAddressCode && (
                   <Text className="text-xs text-green-600 mt-1">
-                    ✓ Prix calculé avec tarification client (.MTNET)
+                    ✓ Prix calculé avec tarification client
                   </Text>
                 )}
                 {!selectedAddressCode && (

@@ -154,7 +154,7 @@ const ArticesCard = (props: ArticesCardProps) => {
                                     size={20} 
                                 />
                             }
-                            disabled={props.available === 0}
+                            disabled={props.available === 0 ? true : false}
                         />
                     ) : (
                         <View>

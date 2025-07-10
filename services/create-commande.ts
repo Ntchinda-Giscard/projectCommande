@@ -7,26 +7,46 @@ import { ENDPOINT_URL } from '@/lib/url';
 
 
 
-export const extractSageStatus = (xml: string): number | null => {
+export const extractTarifStatus = (xmlText: string): {
+  isSuccess: boolean;
+  messages: string[];
+  rawJson?: any;
+} => {
   const parser = new XMLParser({
     ignoreAttributes: false,
-    attributeNamePrefix: '@_',
-    removeNSPrefix: true, // optional: removes soapenv:, wss:, etc.
-    parseTagValue: true,
-    parseAttributeValue: true,
+    attributeNamePrefix: '',
+    processEntities: true,
+    removeNSPrefix: true,
   });
 
+  const parsed = parser.parse(xmlText);
+
   try {
-    const jsonObj = parser.parse(xml);
+    const runReturn = parsed.Envelope.Body.runResponse.runReturn;
+    const status = parseInt(runReturn.status, 10);
 
-    const runReturn =
-      jsonObj?.Envelope?.Body?.runResponse?.runReturn;
+    const messages: string[] = [];
 
-    const status = runReturn?.status;
-    return typeof status === 'number' ? status : parseInt(status || '0');
-  } catch (err) {
-    console.error('Failed to parse Sage X3 SOAP XML:', err);
-    return null;
+    // Check if there are any <multiRef> errors
+    const multiRefs = Object.values(parsed.Envelope.Body).filter((val: any) =>
+      val?.message
+    );
+
+    for (const key in parsed.Envelope.Body) {
+      const node = parsed.Envelope.Body[key];
+      if (node?.message) {
+        messages.push(node.message);
+      }
+    }
+
+    return {
+      isSuccess: status === 1,
+      messages,
+      rawJson: parsed,
+    };
+  } catch (e) {
+    console.error('Failed to extract status:', e);
+    return { isSuccess: false, messages: ['Parsing error'] };
   }
 };
 
@@ -135,12 +155,14 @@ export const createCommande = async (params: CreateCommandeParams) => {
        return await response.text()
     }
 
-    const textResponse = await response.text()
-    const status = extractSageStatus(textResponse)
-    if (status !== 1) {
-      throw Error('Erreur lors de la creation de la commande')
+    const responseText = await response.text(); // get the raw XML
+
+    const { isSuccess, messages } = extractTarifStatus(responseText);
+
+    if (!isSuccess) {
+      throw new Error("Erreur lors de la creation de la commande")
     }
-    return await response
+    return response
   } catch (error) {
     console.error('Adonix SOAP Error:', error);
     throw error;

@@ -112,8 +112,10 @@ export const callAdonixSoapServiceWithAuth = async (params: LoginParams) => {
     // Optional debug
     // const responseText = await response.text();
     // console.log('Raw SOAP Response:', responseText);
+    
 
     // ✅ Parse the actual data
+    // console.log("File texed: ", await response.text())
     const resultJson = await parseSoapResponse(response);
     const jsonParsed = parseSageX3LoginFlatString(resultJson['GRP3']['O_FILE'])
     console.log("jsonParsed", jsonParsed)

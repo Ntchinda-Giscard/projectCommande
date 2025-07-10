@@ -30,7 +30,7 @@ export default function SignIn() {
       const result = await onLogin?.(username, password);
       
       if (result?.error) {
-        // Alert.alert('Login Failed', result.error);
+        Alert.alert('Login Failed', result.error);
       }
       // Navigation will be handled automatically by the auth context
     } catch (error) {
