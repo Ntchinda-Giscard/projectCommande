@@ -1,1 +1,1 @@
-export const ENDPOINT_URL = "http://192.168.0.103:8124/soap-generic/syracuse/collaboration/syracuse/CAdxWebServiceXmlCC"
+export const ENDPOINT_URL = "http://192.168.2.133:8124/soap-generic/syracuse/collaboration/syracuse/CAdxWebServiceXmlCC"

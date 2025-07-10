@@ -35,10 +35,12 @@ type Material = {
   parties: PartyInfo[];
 };
 
+// Updated CartItem type to include designation
 type CartItem = {
   itemCode: string;
   quantity: number;
   price: number;
+  designation: string; // Added designation field
 };
 
 type ArticleCardProps = {
@@ -115,27 +117,16 @@ const Articles = () => {
       image: "/placeholder.svg?height=200&width=200",
       available: totalStock,
       category: material.category || material.family,
-      onAddArticle: (price: number, amount: number) => handleAddToCart(material.itemCode, price, amount),
+      onAddArticle: (price: number, amount: number) => handleAddToCart(material.itemCode, price, amount, material.description),
       onRemoveArticle: (price: number, amount: number) => handleRemoveFromCart(material.itemCode, price, amount)
     }
   }
 
-  const handleAddToCart = async (itemCode: string, price: number, amount: number) => {
-    // const item = articles.find(item => item.itemCode === itemCode)
-    // if (item) {
-    //   const response =  await getTarif({
-    //     article: itemCode,
-    //     client: user?.header?.customerCode || '',
-    //     qty: amount,
-    //     cur: 'EUR',
-    //     svte: 'FR011',
-    //     //@ts-ignore
-    //     sexp: user?.addresses[0]?.code,
-    //     uom: item.salesUoM,
-    //     username: 'admin',
-    //     password: 'Wazasolutions2025@',
-    //   })
-    // }
+  // Updated handleAddToCart to include designation parameter
+  const handleAddToCart = async (itemCode: string, price: number, amount: number, designation?: string) => {
+    // Find the article to get its description if not provided
+    const article = articles.find(item => item.itemCode === itemCode)
+    const articleDesignation = designation || article?.description || `Article ${itemCode}`
     
     setCart(prevCart => {
       const existingItem = prevCart.find(item => item.itemCode === itemCode)
@@ -146,15 +137,21 @@ const Articles = () => {
             : item
         )
       } else {
-        return [...prevCart, { itemCode, quantity: amount, price }]
+        return [...prevCart, { 
+          itemCode, 
+          quantity: amount, 
+          price,
+          designation: articleDesignation // Include designation from article description
+        }]
       }
     })
 
-    
-    // console.log("Item:", item)
-    
-
-    console.log("Cart updated:", cart)
+    console.log("Item added to cart:", {
+      itemCode,
+      quantity: amount,
+      price,
+      designation: articleDesignation
+    })
   }
 
   const handleRemoveFromCart = (itemCode: string, price: number, amount: number) => {
@@ -174,7 +171,7 @@ const Articles = () => {
       return prevCart
     })
 
-    console.log("Cart updated:", cart)
+    console.log("Cart updated after removal:", cart)
   }
 
   // Enhanced search function - case insensitive and includes multiple fields
@@ -260,23 +257,24 @@ const Articles = () => {
     })
   }, [articles, searchQuery, selectedCategory, availabilityFilter])
 
-  // Calculate cart totals
+  // Updated cart totals calculation to include designation in command params
   const cartTotals = useMemo(() => {
     const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0)
     const totalPrice = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0)
+    
+    // Update command params with designation included
     setCommandParams({
       ...commandParams,
       lines: cart.map(item => ({
         itemCode: item.itemCode,
         qty: item.quantity,
-        price: item.price
+        price: item.price,
+        designation: item.designation // Include designation in command lines
       }))
     })
+    
     return { totalItems, totalPrice }
-  }, [cart])
-
-  // Calculate availability statistics
-
+  }, [cart, commandParams, setCommandParams])
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('fr-FR', {
@@ -346,9 +344,13 @@ const Articles = () => {
         <View>
           <Text className="text-2xl font-bold text-gray-900">Articles</Text>
           <Text className="text-gray-600 text-sm">{articles.length} articles au total</Text>
+          {cartTotals.totalItems > 0 && (
+            <Text className="text-blue-600 text-xs mt-1">
+              {cartTotals.totalItems} articles dans le panier
+            </Text>
+          )}
         </View>
         <AppButton
-          // label={`Panier (${cartTotals.totalItems}) - ${formatPrice(cartTotals.totalPrice)} XAF`}
           label={`Panier (${cartTotals.totalItems})`}
           onPress={() => router.push("/basket")}
           className='bg-blue-500 text-white px-4 py-3 rounded-lg flex flex-row items-center'
@@ -555,4 +557,3 @@ const Articles = () => {
 }
 
 export default Articles
-

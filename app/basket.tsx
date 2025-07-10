@@ -1,4 +1,4 @@
-import { View, Text, ScrollView, TouchableOpacity, SafeAreaView, StatusBar, Alert, TextInput, ActivityIndicator, Modal } from 'react-native'
+import { View, Text, ScrollView, TouchableOpacity, SafeAreaView, StatusBar, Alert, TextInput, ActivityIndicator } from 'react-native'
 import React, { useState, useMemo, useEffect, useCallback } from 'react'
 import { useRouter } from 'expo-router'
 import AppButton from '@/components/app-button'
@@ -11,11 +11,12 @@ import { getTarif } from '@/services/tarif-service'
 import { MaterialIcons } from '@expo/vector-icons'
 import LoadingModal from '@/components/laoding-modal'
 
-
+// Updated Line type to include designation
 type Line = {
   itemCode: string;
   qty: number;
   price?: number;
+  designation?: string; // Added designation field
 };
 
 type BasketItemDisplay = Line & {
@@ -31,15 +32,14 @@ type BasketItemDisplay = Line & {
 type TarifResponse = {
   MTNET: string;
   CLIENT: string;
-    ARTICLE: string;
-    QTY: string;
-    SVTE: string;
-    SEXP: string;
-    UOM: string;
-    CUR: string;
-    GROPRI: string;
-    PRINET: string;
-  // [key: string]: any;
+  ARTICLE: string;
+  QTY: string;
+  SVTE: string;
+  SEXP: string;
+  UOM: string;
+  CUR: string;
+  GROPRI: string;
+  PRINET: string;
 };
 
 const BasketScreen = () => {
@@ -54,7 +54,6 @@ const BasketScreen = () => {
   const [loadingPrices, setLoadingPrices] = useState<Record<string, boolean>>({})
   const [showAddressPrompt, setShowAddressPrompt] = useState(false)
   const [loading, setLoading] = useState(false);
-
 
   // Extract basket items from commandParams.lines
   const basketLines: Line[] = commandParams.lines || []
@@ -178,7 +177,7 @@ const BasketScreen = () => {
     }
   }, [basketLines, calculateAllPrices])
 
-  // Enhanced basket items with refined pricing
+  // Enhanced basket items with refined pricing and designation
   const enrichedBasketItems: BasketItemDisplay[] = useMemo(() => {
     return basketLines.map(line => {
       const key = `${line.itemCode}-${line.qty}`
@@ -186,9 +185,9 @@ const BasketScreen = () => {
       
       return {
         ...line,
-        name: article?.description || `Article ${line.itemCode}`,
+        name: line.designation || article?.description || `Article ${line.itemCode}`, // Use designation first, then article description
         category: article?.category || article?.family || 'General',
-        description: article?.description || `Description for ${line.itemCode}`,
+        description: line.designation || article?.description || `Description for ${line.itemCode}`,
         unitPrice: article?.salesPrice || line.price || 0, // Individual item price
         mtnetPrice: itemMtnetPrices[key], // Total price from .MTNET
         isLoadingPrice: loadingPrices[key] || false
@@ -196,7 +195,7 @@ const BasketScreen = () => {
     })
   }, [basketLines, articles, itemMtnetPrices, loadingPrices])
 
-  // Calculate totals using exclusively .MTNET values - FIXED VERSION
+  // Calculate totals using exclusively .MTNET values
   const basketTotals = useMemo(() => {
     const totalItems = basketLines.reduce((sum, line) => sum + (line.qty || 0), 0)
     
@@ -231,6 +230,7 @@ const BasketScreen = () => {
       hasLoadingPrices,
       enrichedBasketItems: enrichedBasketItems.map(item => ({
         itemCode: item.itemCode,
+        designation: item.designation,
         mtnetPrice: item.mtnetPrice,
         unitPrice: item.unitPrice,
         qty: item.qty
@@ -299,33 +299,6 @@ const BasketScreen = () => {
     // Clear existing prices to trigger recalculation
     setItemMtnetPrices({})
   };
-
-  // Add new item to basket and trigger price calculation
-  const addItemToBasket = (itemCode: string, price: number, quantity: number = 1) => {
-    const existingLineIndex = basketLines.findIndex(line => line.itemCode === itemCode)
-    
-    let updatedLines: Line[]
-    
-    if (existingLineIndex >= 0) {
-      updatedLines = basketLines.map((line, index) =>
-        index === existingLineIndex
-          ? { ...line, qty: line.qty + quantity }
-          : line
-      )
-    } else {
-      updatedLines = [...basketLines, { itemCode, qty: quantity, price }]
-    }
-
-    setCommandParams({
-      ...commandParams,
-      lines: updatedLines
-    })
-
-    // Prompt for address if not selected
-    if (!selectedAddressCode) {
-      setShowAddressPrompt(true)
-    }
-  }
 
   // Remove single item
   const removeItem = (itemCode: string) => {
@@ -435,10 +408,10 @@ const BasketScreen = () => {
     return dateString || ''
   }
 
-  // Process order with calculated .MTNET prices
+  // Process order with calculated .MTNET prices and designation
   const processOrder = async () => {
     try {
-      // Update lines with calculated unit prices from .MTNET
+      // Update lines with calculated unit prices from .MTNET and preserve designation
       const updatedLines = basketLines.map(line => {
         const key = `${line.itemCode}-${line.qty}`
         const mtnetTotal = itemMtnetPrices[key] || 0
@@ -446,7 +419,8 @@ const BasketScreen = () => {
         
         return {
           ...line,
-          price: unitPrice > 0 ? unitPrice : (line.price || 0)
+          price: unitPrice > 0 ? unitPrice : (line.price || 0),
+          designation: line.designation // Preserve designation in final command
         }
       })
 
@@ -456,7 +430,7 @@ const BasketScreen = () => {
         lines: updatedLines
       }
 
-      console.log("Processing order with .MTNET calculated prices:", updatedCommandParams)
+      console.log("Processing order with .MTNET calculated prices and designations:", updatedCommandParams)
       
       const result = await createCommande({
         username: "admin",
@@ -578,12 +552,6 @@ const BasketScreen = () => {
   return (
     <SafeAreaView className="flex-1 bg-gray-50">
       <StatusBar barStyle="dark-content" backgroundColor="#f9fafb" />
-
-      {/* <Modal>
-        <View>
-          
-        </View>
-      </Modal> */}
       
       {/* Header */}
       <View className="px-6 py-4 bg-white border-b border-gray-200">
@@ -689,20 +657,25 @@ const BasketScreen = () => {
         </View>
       </View>
 
-      {/* Basket Items */}
+      {/* Basket Items - Enhanced to show designation */}
       <ScrollView className="flex-1 px-6" showsVerticalScrollIndicator={false}>
         <View className="mt-4 mb-6">
           {enrichedBasketItems.map((item, index) => (
             <View key={`${item.itemCode}-${index}`} className="bg-white rounded-xl p-4 mb-3 border border-gray-200">
-              {/* Item Header */}
+              {/* Item Header - Enhanced with designation */}
               <View className="flex-row items-start justify-between mb-3">
                 <View className="flex-1 mr-3">
                   <Text className="text-lg font-semibold text-gray-900 mb-1" numberOfLines={2}>
-                    {item.name || item.itemCode}
+                    {item.designation || item.name || item.itemCode}
                   </Text>
                   <Text className="text-sm text-gray-500 mb-2">
                     Code: {item.itemCode}
                   </Text>
+                  {item.designation && (
+                    <Text className="text-xs text-blue-600 mb-2">
+                      Désignation: {item.designation}
+                    </Text>
+                  )}
                   {item.category && (
                     <View className="bg-gray-100 self-start px-2 py-1 rounded-full">
                       <Text className="text-xs text-gray-600">{item.category}</Text>
@@ -821,43 +794,6 @@ const BasketScreen = () => {
           ))}
         </View>
       </ScrollView>
-
-      {/* Bottom Actions */}
-      {/* <View className="bg-white border-t border-gray-200 px-6 py-4">
-        <View className="flex-row space-x-3">
-          <TouchableOpacity
-            onPress={clearBasket}
-            className="flex-1 bg-red-50 border border-red-200 py-4 rounded-lg flex-row items-center justify-center"
-          >
-            <MaterialIcons name="clear" size={20} color="#ef4444" />
-            <Text className="text-red-600 font-medium ml-2">Vider</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity
-            onPress={validateBasket}
-            className={`flex-2 py-4 rounded-lg flex-row items-center justify-center ${
-              selectedAddressCode && displayTotal > 0 && !basketTotals.hasLoadingPrices
-                ? 'bg-blue-500' 
-                : 'bg-gray-300'
-            }`}
-            style={{ flex: 2 }}
-            disabled={!selectedAddressCode || displayTotal === 0 || basketTotals.hasLoadingPrices}
-          >
-            <MaterialIcons 
-              name="shopping-cart-checkout" 
-              size={20} 
-              color={selectedAddressCode && displayTotal > 0 && !basketTotals.hasLoadingPrices ? "white" : "#9ca3af"} 
-            />
-            <Text className={`font-semibold ml-2 text-lg ${
-              selectedAddressCode && displayTotal > 0 && !basketTotals.hasLoadingPrices
-                ? 'text-white' 
-                : 'text-gray-500'
-            }`}>
-              Valider • {selectedAddressCode && !basketTotals.hasLoadingPrices ? formatCurrency(displayTotal) : 'Adresse requise'}
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </View> */}
     </SafeAreaView>
   )
 }

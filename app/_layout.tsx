@@ -30,19 +30,18 @@ function RootLayoutNav() {
   const router = useRouter();
 
   useEffect(() => {
-    // Check if authentication state is still loading
-    if (authState?.authenticated === null) {
-      return; // Still loading, don't navigate yet
-    }
+    if (authState?.authenticated === null) return;
 
-    const inAuthGroup = segments[0] === "(tabs)";
+    const rootSegment = segments[0];
 
-    // if (authState?.authenticated && !inAuthGroup) {
-    //   // User is authenticated but not in the protected area, redirect to tabs
-    //   router.replace("/(tabs)");
-    // } else 
-    if (!authState?.authenticated && inAuthGroup) {
-      // User is not authenticated but trying to access protected area, redirect to signin
+    const inAuthGroup = rootSegment === "(tabs)";
+    const inPublicPages = rootSegment === "signin" || rootSegment === undefined;
+
+    if (authState?.authenticated && !inAuthGroup) {
+      // Redirect authenticated users away from public pages
+      if (inPublicPages) router.replace("/(tabs)");
+    } else if (!authState?.authenticated && inAuthGroup) {
+      // Redirect unauthenticated users away from private tabs
       router.replace("/signin");
     }
   }, [authState?.authenticated, segments]);
